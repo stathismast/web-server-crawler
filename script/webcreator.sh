@@ -29,7 +29,7 @@ for i in $(seq 0 $(expr $3 - 1))
 do
 	for j in $(seq 0 $(expr $4 - 1))
 	do
-		echo $1"/site"$i"/page"$j"_"$RANDOM".html" >> /tmp/pages
+		echo $1"/site"$i"/page"$j"_"$RANDOM".html" | sed 's/\/\//\//g' >> /tmp/pages
 	done
 done
 
