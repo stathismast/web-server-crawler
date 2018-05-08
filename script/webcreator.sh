@@ -54,11 +54,25 @@ do
 
 		echo "</body>" >> $NAME
 		echo "</html>" >> $NAME
+
+		cat /tmp/links >> /tmp/allLinks
+		sort -u -o /tmp/allLinks /tmp/allLinks
 		rm -f /tmp/links
 	done
 done
 
 rm -f /tmp/pages
+
+# Check if every page has atleast one incoming link
+echo "#"
+if [ $(wc -l /tmp/allLinks | cut -d ' ' -f 1) = $(expr $3 \* $4) ]; then
+	echo "# All pages have at least one incoming link."
+else
+	echo "# Not all pages have an incoming link."
+fi
+
+
+rm -f /tmp/allLinks
 
 echo "#"
 echo "# Done."
