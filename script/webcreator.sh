@@ -4,6 +4,18 @@ if [ ! -d "$1" ]; then
 	exit 1
 fi
 
+# Check if text_file is an existing file
+if [ ! -f "$2" ]; then
+	echo "$0: '$2' does not exist or is not a file."
+	exit 1
+fi
+
+# Check if input text file has atleast 10000 lines
+if [ $(wc -l $2 | cut -d ' ' -f 1) -lt 10000 ]; then
+	echo "$0: '$2' has less than 10000 lines."
+	exit 1
+fi
+
 # Check if the directory is empty, if not purge it
 if [ "$(ls -A $1)" ]; then
 	echo "# Warning: directory ($1) is not empty, purging..."
