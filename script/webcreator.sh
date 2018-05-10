@@ -51,8 +51,8 @@ do
 		echo "<html>"  >> $NAME
 		echo "<body>"  >> $NAME
 
-		grep site$i /tmp/pages | grep -v $NAME | shuf | head -$f >> /tmp/links
-		grep -v site$i /tmp/pages | grep -v $NAME | shuf | head -$q >> /tmp/links
+		grep site$i /tmp/pages | grep -v $NAME | shuf | head -$f | cut -d '/' -f 2- | sed 's/^/\//g' >> /tmp/links
+		grep -v site$i /tmp/pages | grep -v $NAME | shuf | head -$q | cut -d '/' -f 2- | sed 's/^/\//g' >> /tmp/links
 		shuf -o /tmp/links /tmp/links
 		step=$(expr $m / $(expr $f + $q))
 		pos=0
