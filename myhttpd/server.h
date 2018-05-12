@@ -7,7 +7,10 @@
 #include <string.h>                                /* For strlen, bzero */
 #include <unistd.h>
 
+int createSocket();
 void listenForConnections(int sock, int port);
+void acceptConnection(int sock);
+void serveClient(int sock);
 char * getFullAddress(char * relativeAddress);
 char * createResponse(char * content);
 int countBytes(char * file);
