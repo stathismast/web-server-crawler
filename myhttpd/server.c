@@ -65,13 +65,75 @@ void acceptConnection(int sock){
     }
     printf("Accepted connection from %s\n", rem->h_name);
 
+    //Create a new thread to serve the request
+    pthread_t thread = createThread(serveClientThread, newsock);
+    joinThread(thread);
+
     //Create child to serve the client
-    switch(fork()){
-        case -1:
-            perror("fork"); exit(1);
-        case 0:     //Child process
-            serveClient(newsock);
+    // switch(fork()){
+    //     case -1:
+    //         perror("fork"); exit(1);
+    //     case 0:     //Child process
+    //         serveClient(newsock);
+    // }
+}
+
+void * serveClientThread(void * argp){ /* Thread function */
+    int sock = *((int *)argp);
+    // printf("I am the newly created thread %ld with argument '%d'\n", pthread_self(), sock);
+
+    char buf[4096];
+    bzero(buf, sizeof buf); //Init buffer
+    if (read(sock, buf, sizeof buf) < 0){ //Get message
+        perror("read");
+        pthread_exit((void *) 1);
     }
+
+    //Check that we received a GET command
+    strtok(buf," ");
+    if(strcmp(buf,"GET") != 0 ){
+        if (write(sock, notGet, sizeof notGet) < 0){
+            perror("write");
+            pthread_exit((void *) 1);
+        }
+        pthread_exit((void *) 0);
+    }
+
+    //Store requested file name
+    char * relativeAddress = strtok(NULL," ");
+    if(relativeAddress == NULL){
+        if (write(sock, errorMsg, sizeof errorMsg) < 0){//Send message
+            perror("write");
+            pthread_exit((void *) 1);
+        }
+        pthread_exit((void *) 0);
+    }
+
+    char * htmlFile = getFullAddress(relativeAddress);
+    printf("File requested: %s\n", htmlFile);
+
+    char * content = getContent(htmlFile);
+    if(content == NULL){
+        if (write(sock, errorMsg, sizeof errorMsg) < 0){//Send message
+            perror("write");
+            pthread_exit((void *) 1);
+        }
+        pthread_exit((void *) 0);
+    }
+
+    char * htmlResponse = createResponse(content);
+    // printf("\n%s\n",htmlResponse);
+    if (write(sock, htmlResponse, (int)strlen(htmlResponse)+1) < 0){//Send message
+        perror("write");
+        pthread_exit((void *) 1);
+    }
+
+    close(sock);           //Close socket
+    free(htmlFile);
+    free(htmlResponse);
+    free(content);
+    free(argp);
+    pthread_exit((void *) 0);
 }
 
 void serveClient(int sock){
