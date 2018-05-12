@@ -42,6 +42,7 @@ char * getFullAddress(char * relativeAddress){
     htmlFile[0] = 0;
     strcat(htmlFile,rootDir);
     strcat(htmlFile,relativeAddress);
+    return htmlFile;
 }
 
 void acceptConnection(int sock){
@@ -116,12 +117,15 @@ void serveClient(int sock){
     }
 
     close(sock);           //Close socket
+    free(htmlFile);
+    free(htmlResponse);
+    free(content);
     exit(0);
 }
 
 char * createResponse(char * content){
     char contentLength[1024];
-    char * htmlResponse = malloc(1024);
+    char * htmlResponse = malloc(512 + strlen(content));
     htmlResponse[0] = 0;
     strcat(htmlResponse,"HTTP/1.1 200 OK\n");
     strcat(htmlResponse,"Date: Mon, 27 May 2018 12:28:53 GMT\n");
