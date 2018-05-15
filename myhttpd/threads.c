@@ -4,11 +4,10 @@
 
 pthread_t createThread(void *(*start_routine) (void *), int arg){
     pthread_t thread;
-    int * argp = malloc(sizeof(int));
-    *argp = arg;
+    long argument = arg;
     int err;
 
-    if (err = pthread_create(&thread, NULL, start_routine, (void *)argp)) { /* New thread */
+    if (err = pthread_create(&thread, NULL, start_routine, (void *)argument)) { /* New thread */
         perrorThreads("pthread_create", err);
         exit(1);
     }

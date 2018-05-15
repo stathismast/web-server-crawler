@@ -6,6 +6,12 @@ char notGet[1024] = "HTTP/1.1 403 OK\nDate: Mon, 27 May 2018 12:28:53 GMT\nServe
 
 extern char rootDir[50];
 
+extern pthread_mutex_t mtx;
+extern pthread_cond_t cond_nonempty;
+extern Queue * queue;
+
+extern int done;
+
 int createSocket(){
     int sock;
     if ((sock = socket(PF_INET, SOCK_STREAM, 0)) < 0){
@@ -66,8 +72,13 @@ void acceptConnection(int sock){
     printf("Accepted connection from %s\n", rem->h_name);
 
     //Create a new thread to serve the request
-    pthread_t thread = createThread(serveClientThread, newsock);
-    joinThread(thread);
+    // pthread_t thread = createThread(serveClientThread, newsock);
+    // joinThread(thread);
+
+
+	place(&queue, newsock);
+	printf("producer: %d\n", newsock);
+	pthread_cond_signal(&cond_nonempty);
 
     //Create child to serve the client
     // switch(fork()){
@@ -78,111 +89,97 @@ void acceptConnection(int sock){
     // }
 }
 
-void * serveClientThread(void * argp){ /* Thread function */
-    int sock = *((int *)argp);
-    // printf("I am the newly created thread %ld with argument '%d'\n", pthread_self(), sock);
-
-    char buf[4096];
-    bzero(buf, sizeof buf); //Init buffer
-    if (read(sock, buf, sizeof buf) < 0){ //Get message
-        perror("read");
-        pthread_exit((void *) 1);
-    }
-
-    //Check that we received a GET command
-    strtok(buf," ");
-    if(strcmp(buf,"GET") != 0 ){
-        if (write(sock, notGet, sizeof notGet) < 0){
-            perror("write");
-            pthread_exit((void *) 1);
-        }
-        pthread_exit((void *) 0);
-    }
-
-    //Store requested file name
-    char * relativeAddress = strtok(NULL," ");
-    if(relativeAddress == NULL){
-        if (write(sock, errorMsg, sizeof errorMsg) < 0){//Send message
-            perror("write");
-            pthread_exit((void *) 1);
-        }
-        pthread_exit((void *) 0);
-    }
-
-    char * htmlFile = getFullAddress(relativeAddress);
-    printf("File requested: %s\n", htmlFile);
-
-    char * content = getContent(htmlFile);
-    if(content == NULL){
-        if (write(sock, errorMsg, sizeof errorMsg) < 0){//Send message
-            perror("write");
-            pthread_exit((void *) 1);
-        }
-        pthread_exit((void *) 0);
-    }
-
-    char * htmlResponse = createResponse(content);
-    // printf("\n%s\n",htmlResponse);
-    if (write(sock, htmlResponse, (int)strlen(htmlResponse)+1) < 0){//Send message
-        perror("write");
-        pthread_exit((void *) 1);
-    }
-
-    close(sock);           //Close socket
-    free(htmlFile);
-    free(htmlResponse);
-    free(content);
-    free(argp);
-    pthread_exit((void *) 0);
+void place(Queue ** queue, int data) {
+	pthread_mutex_lock(&mtx);
+	addToQueue(data,queue);
+	pthread_mutex_unlock(&mtx);
 }
 
-void serveClient(int sock){
-    char buf[4096];
-    bzero(buf, sizeof buf); //Init buffer
-    if (read(sock, buf, sizeof buf) < 0){ //Get message
-        perror("read"); exit(1);
-    }
+int obtain(Queue ** queue) {
+	int data = -1;
+	pthread_mutex_lock(&mtx);
+	while ((*queue)->length <= 0 && !done) {
+		printf("Will be waiting \n");
+		pthread_cond_wait(&cond_nonempty, &mtx);
+		printf("Stopped waiting\n");
+		}
+	// if(!done){
+	// 	data = popFromQueue(queue);
+	// }
+	printf("About to obtain, length is %d\n", (*queue)->length);
+	data = popFromQueue(queue);
 
-    //Check that we received a GET command
-    strtok(buf," ");
-    if(strcmp(buf,"GET") != 0 ){
-        if (write(sock, notGet, sizeof notGet) < 0){
-            perror("write"); exit(1);
+	pthread_mutex_unlock(&mtx);
+	return data;
+}
+
+void * worker(void * argp){
+	while (!done) {
+		int value = obtain(&queue);
+		printf("#%ld consumer: %d\n", (long) argp, value);
+
+        if(value == -1){
+            printf("Value was -1\n");
+            continue;
         }
-        exit(0);
-    }
 
-    //Store requested file name
-    char * relativeAddress = strtok(NULL," ");
-    if(relativeAddress == NULL){
-        if (write(sock, errorMsg, sizeof errorMsg) < 0){//Send message
-            perror("write"); exit(1);
+        int sock = value;
+        // printf("I am the newly created thread %ld with argument '%d'\n", pthread_self(), sock);
+
+        char buf[4096];
+        bzero(buf, sizeof buf); //Init buffer
+        if (read(sock, buf, sizeof buf) < 0){ //Get message
+            perror("read");
+            pthread_exit((void *) 1);
         }
-        exit(0);
-    }
 
-    char * htmlFile = getFullAddress(relativeAddress);
-    printf("File requested: %s\n", htmlFile);
-
-    char * content = getContent(htmlFile);
-    if(content == NULL){
-        if (write(sock, errorMsg, sizeof errorMsg) < 0){//Send message
-            perror("write"); exit(1);
+        //Check that we received a GET command
+        strtok(buf," ");
+        if(strcmp(buf,"GET") != 0 ){
+            if (write(sock, notGet, sizeof notGet) < 0){
+                perror("write");
+                pthread_exit((void *) 1);
+            }
+            pthread_exit((void *) 0);
         }
-        exit(0);
-    }
 
-    char * htmlResponse = createResponse(content);
-    // printf("\n%s\n",htmlResponse);
-    if (write(sock, htmlResponse, (int)strlen(htmlResponse)+1) < 0){//Send message
-        perror("write"); exit(1);
-    }
+        //Store requested file name
+        char * relativeAddress = strtok(NULL," ");
+        if(relativeAddress == NULL){
+            if (write(sock, errorMsg, sizeof errorMsg) < 0){//Send message
+                perror("write");
+                pthread_exit((void *) 1);
+            }
+            pthread_exit((void *) 0);
+        }
 
-    close(sock);           //Close socket
-    free(htmlFile);
-    free(htmlResponse);
-    free(content);
-    exit(0);
+        char * htmlFile = getFullAddress(relativeAddress);
+        printf("File requested: %s\n", htmlFile);
+
+        char * content = getContent(htmlFile);
+        if(content == NULL){
+            if (write(sock, errorMsg, sizeof errorMsg) < 0){//Send message
+                perror("write");
+                pthread_exit((void *) 1);
+            }
+            pthread_exit((void *) 0);
+        }
+
+        char * htmlResponse = createResponse(content);
+        // printf("\n%s\n",htmlResponse);
+        if (write(sock, htmlResponse, (int)strlen(htmlResponse)+1) < 0){//Send message
+            perror("write");
+            pthread_exit((void *) 1);
+        }
+
+        close(sock);           //Close socket
+        free(htmlFile);
+        free(htmlResponse);
+        free(content);
+
+	}
+	printf("Done has value %d\n", done);
+	pthread_exit(0);
 }
 
 char * createResponse(char * content){
