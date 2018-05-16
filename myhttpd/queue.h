@@ -19,6 +19,7 @@ typedef struct QNode{
 #endif //QUEUE_H
 
 Queue * newQueue(int fd);
+void initQueue(Queue ** queue);
 void freeQueue(Queue * queue);
 void freeQNode(QNode * node);
 void addToQueue(int fd, Queue ** queue);

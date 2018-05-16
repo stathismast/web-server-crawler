@@ -5,6 +5,7 @@ int createSocket();
 void listenForConnections(int sock, int port);
 void acceptConnection(int sock);
 void * worker(void * argp);
+void serveRequest(int sock);
 char * getFullAddress(char * relativeAddress);
 char * createResponse(char * content);
 int countBytes(char * file);
