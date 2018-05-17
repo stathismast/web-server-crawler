@@ -122,7 +122,8 @@ void serveRequest(int sock){
     bzero(buf, sizeof buf); //Init buffer
     if (read(sock, buf, sizeof buf) < 0){ //Get message
         perror("read");
-        pthread_exit((void *) 1);
+        return;
+        close(sock);
     }
 
     //Check that we received a GET command
@@ -130,9 +131,11 @@ void serveRequest(int sock){
     if(strcmp(buf,"GET") != 0 ){
         if (write(sock, notGet, sizeof notGet) < 0){
             perror("write");
-            pthread_exit((void *) 1);
+            return;
+            close(sock);
         }
-        pthread_exit((void *) 0);
+        close(sock);
+        return;
     }
 
     //Store requested file name
@@ -140,9 +143,11 @@ void serveRequest(int sock){
     if(relativeAddress == NULL){
         if (write(sock, errorMsg, sizeof errorMsg) < 0){//Send message
             perror("write");
-            pthread_exit((void *) 1);
+            return;
+            close(sock);
         }
-        pthread_exit((void *) 0);
+        close(sock);
+        return;
     }
 
     char * htmlFile = getFullAddress(relativeAddress);
@@ -152,16 +157,26 @@ void serveRequest(int sock){
     if(content == NULL){
         if (write(sock, errorMsg, sizeof errorMsg) < 0){//Send message
             perror("write");
-            pthread_exit((void *) 1);
+            return;
+            close(sock);           //Close socket
+            free(htmlFile);
+            free(content);
         }
-        pthread_exit((void *) 0);
+        close(sock);           //Close socket
+        free(htmlFile);
+        free(content);
+        return;
     }
 
     char * htmlResponse = createResponse(content);
     // printf("\n%s\n",htmlResponse);
     if (write(sock, htmlResponse, (int)strlen(htmlResponse)+1) < 0){//Send message
         perror("write");
-        pthread_exit((void *) 1);
+        close(sock);           //Close socket
+        free(htmlFile);
+        free(htmlResponse);
+        free(content);
+        return;
     }
 
     close(sock);           //Close socket
