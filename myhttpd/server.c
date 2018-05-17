@@ -64,12 +64,12 @@ void acceptConnection(int sock){
     }
 
     //Find clients address
-    if ((rem = gethostbyaddr((char *) &client.sin_addr.s_addr,
-                                      sizeof client.sin_addr.s_addr,
-                                      client.sin_family)) == NULL) {
-        perror("gethostbyaddr"); exit(1);
-    }
-    printf("Accepted connection from %s\n", rem->h_name);
+    // if ((rem = gethostbyaddr((char *) &client.sin_addr.s_addr,
+    //                                   sizeof client.sin_addr.s_addr,
+    //                                   client.sin_family)) == NULL) {
+    //     perror("gethostbyaddr"); exit(1);
+    // }
+    // printf("Accepted connection from %s\n", rem->h_name);
 
     //Safely add socket-fd in queue and signal the first available thread
     place(&queue, newsock);
