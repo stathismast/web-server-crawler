@@ -1,7 +1,7 @@
 #include "server.h"
 
-char rootDir[50] = "/mnt/d/DI/linux/home/syspro/third/script/root_dir";
-int numberOfThreads = 2;
+char * rootDir;
+int numberOfThreads = 10;
 
 pthread_mutex_t mtx;
 pthread_cond_t cond_nonempty;
@@ -16,11 +16,14 @@ int main(int argc, char *argv[]){
     int port;
 
     //Manage arguments
-    if (argc < 2){
-        printf("Please give the port number\n");
+    if (argc < 3){
+        printf("Please give the port number and root directory\n");
         exit(1);
     }
     port = atoi(argv[1]);
+    rootDir = malloc(strlen(argv[2])+1);
+    bzero(rootDir, strlen(argv[2])+1); //Initialize string
+    strcpy(rootDir, argv[2]);
 
     //Initialize queue
     initQueue(&queue);

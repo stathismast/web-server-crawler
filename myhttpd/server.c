@@ -4,7 +4,7 @@ char response[1024] = "HTTP/1.1 200 OK\nDate: Mon, 27 May 2018 12:28:53 GMT\nSer
 char errorMsg[1024] = "HTTP/1.1 403 OK\nDate: Mon, 27 May 2018 12:28:53 GMT\nServer: myhttpd/1.0.0 (Ubuntu64)\nContent-Length: 46\nContent-Type: text/html\nConnection: Closed\n\n<html>404 Error: Cannot find this file</html>";
 char notGet[1024] = "HTTP/1.1 403 OK\nDate: Mon, 27 May 2018 12:28:53 GMT\nServer: myhttpd/1.0.0 (Ubuntu64)\nContent-Length: 57\nContent-Type: text/html\nConnection: Closed\n\n<html>Error: This server only support GET requests</html>";
 
-extern char rootDir[50];
+extern char * rootDir;
 
 extern pthread_mutex_t mtx;
 extern pthread_cond_t cond_nonempty;
@@ -83,16 +83,16 @@ void place(Queue ** queue, int data) {
     pthread_mutex_unlock(&mtx);
 }
 
-int obtain(Queue ** queue) {
+int obtain(Queue ** queue, int id) {
     int data = -1;
     pthread_mutex_lock(&mtx);
 
         while ((*queue)->length <= 0 && !done) {
-            printf("Will be waiting \n");
+            printf("#%d Will be waiting\n", id);
             pthread_cond_wait(&cond_nonempty, &mtx);
-            printf("Stopped waiting\n");
+            printf("#%d Stopped waiting\n", id);
             }
-        printf("About to obtain, length is %d\n", (*queue)->length);
+        // printf("#%d About to obtain, length is %d\n", id, (*queue)->length);
         data = popFromQueue(queue);
 
     pthread_mutex_unlock(&mtx);
@@ -102,28 +102,28 @@ int obtain(Queue ** queue) {
 void * worker(void * argp){
     int id = (long) argp;
     while (!done) {
-        int fd = obtain(&queue);
-        printf("#%ld consumer: %d\n", (long) argp, fd);
+        int fd = obtain(&queue, id);
+        // printf("#%ld consumer: %d\n", (long) argp, fd);
 
         if(fd == -1){
-            printf("Value was -1\n");
+            printf("#%d Value was -1\n", id);
             continue;
         }
 
-        serveRequest(fd);
+        serveRequest(fd, id);
     }
 
-    printf("Done has value %d\n", done);
+    printf("#%d Done has value %d\n", id, done);
     pthread_exit(0);
 }
 
-void serveRequest(int sock){
+void serveRequest(int sock, int id){
     char buf[4096];
     bzero(buf, sizeof buf); //Init buffer
     if (read(sock, buf, sizeof buf) < 0){ //Get message
         perror("read");
-        return;
         close(sock);
+        return;
     }
 
     //Check that we received a GET command
@@ -131,9 +131,10 @@ void serveRequest(int sock){
     if(strcmp(buf,"GET") != 0 ){
         if (write(sock, notGet, sizeof notGet) < 0){
             perror("write");
-            return;
             close(sock);
+            return;
         }
+        printf("#%d returning (Not a GET request)\n", id);
         close(sock);
         return;
     }
@@ -143,25 +144,27 @@ void serveRequest(int sock){
     if(relativeAddress == NULL){
         if (write(sock, errorMsg, sizeof errorMsg) < 0){//Send message
             perror("write");
-            return;
             close(sock);
+            return;
         }
         close(sock);
+        printf("#%d returning (Invalid HTTP request)\n", id);
         return;
     }
 
     char * htmlFile = getFullAddress(relativeAddress);
-    printf("File requested: %s\n", htmlFile);
+    printf("#%d File requested: %s\n", id, htmlFile);
 
     char * content = getContent(htmlFile);
     if(content == NULL){
         if (write(sock, errorMsg, sizeof errorMsg) < 0){//Send message
             perror("write");
-            return;
             close(sock);           //Close socket
             free(htmlFile);
             free(content);
+            return;
         }
+        printf("#%d returning (File not found)\n", id);
         close(sock);           //Close socket
         free(htmlFile);
         free(content);
