@@ -37,7 +37,7 @@ void listenForConnections(int sock, int port){
     }
 
     //Listen for connections
-    if (listen(sock, 5) < 0){
+    if (listen(sock, 512) < 0){
         perror("listen"); exit(1);
     }
     printf("Listening for connections to port %d\n", port);
