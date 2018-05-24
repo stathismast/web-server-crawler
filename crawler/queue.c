@@ -15,14 +15,14 @@ void freeQueue(Queue * queue){
     free(queue);
 }
 
-void addToQueue(char * fileName, Queue ** queue){
+int addToQueue(char * fileName, Queue ** queue){
     if(*queue == NULL){
         (*queue) = newQueue(fileName);
-        return;
+        return 1;
     }
 
     if(strcmp(fileName,(*queue)->fileName) == 0)
-        return;
+        return 0;
 
     return addToQueue(fileName,&(*queue)->next);
 }

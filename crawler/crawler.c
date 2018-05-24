@@ -1,14 +1,16 @@
-#include "queue.h"
+#include "crawler.h"
 
-char line[4096]; //Used to read the http header line by line
+extern char * host;
+extern int port;
 
-char * host;
-int port;
+extern Queue * queue;
+extern Queue * nextFile;
+extern pthread_mutex_t mtx;
+extern pthread_cond_t cond_nonempty;
 
-Queue * queue;
+extern int done;
 
-int getNextLine(int fd){
-    bzero(line, sizeof line);
+void getNextLine(int fd, char * line){
     int pos = 0;
     do {
         // printf("Quarter%d: -%s-\n",pos, line);
@@ -25,7 +27,7 @@ int findQuotations(char * str){
     return offset;
 }
 
-void sendHttpRequest(char * request){
+int  sendHttpRequest(char * request){
     int sock; unsigned int serverlen;
     struct sockaddr_in server;
     struct sockaddr *serverptr;
@@ -52,24 +54,38 @@ void sendHttpRequest(char * request){
         perror("write"); exit(1);
     }
 
+    return sock;
+}
+
+char * readHttpResponse(int sock){
     //Read HTTP header and store content length
     int contentLength = 0;
+    char line[4096];
     do {
-        getNextLine(sock);
+        bzero(line, sizeof line);
+        getNextLine(sock,line);
         if(strstr(line,"Content-Length:") != NULL){
             strtok(line," ");
-            contentLength = atoi(strtok(NULL," "));
+            char * length = strtok(NULL," ");
+            contentLength = atoi(length);
         }
     } while(strcmp(line,"\n") != 0);
 
     //Read file (by now we know the file's size)
-    char * buffer = malloc(contentLength);
+    char * buffer = malloc(contentLength+1);
     if(read(sock, buffer, contentLength) < 0){         /* Receive message */
         perror("read"); exit(1);
     }
+    buffer[contentLength] = 0;
 
-    //Search file for other links and add them to the queue
-    char * htmlLink = buffer;
+    close(sock);
+
+    return buffer;
+}
+
+Queue * findLinks(char * content){
+    Queue * myQueue = NULL;
+    char * htmlLink = content;
     int offset = 0;
     while((htmlLink = strstr(&htmlLink[offset],"<a href")) != NULL){
         htmlLink = strstr(htmlLink,"/");
@@ -77,13 +93,11 @@ void sendHttpRequest(char * request){
         char * link = malloc(offset + 1);
         strncpy(link,htmlLink,offset);
         link[offset] = 0;
-        addToQueue(link,&queue);
+        addToQueue(link,&myQueue);
         free(link);
     }
 
-    free(buffer);
-    close(sock);
-
+    return myQueue;
 }
 
 void manageArguments(int argc, char *argv[]){
@@ -102,21 +116,46 @@ char * createRequest(char * fileName){
     return request;
 }
 
-int main(int argc, char *argv[]){
+void * worker(void * argp){
+    int id = (long) argp;
+    while(!done){
+        pthread_mutex_lock(&mtx);
+            while(nextFile == NULL){
+                printf("I'm %d and i'm about to go waitin'. Queue is:\n",id); printQueue(queue);
+                pthread_cond_wait(&cond_nonempty, &mtx);
+            }
+            char * request = createRequest(nextFile->fileName);
+            nextFile = nextFile->next;
+        pthread_mutex_unlock(&mtx);
 
-    manageArguments(argc,argv);
+        printf("I'm #%d and im finna bout to ask for %s\n", id, request);
 
-    queue = NULL;   //Initialize queue to NULL
-    addToQueue("/site2/page7_16864.html",&queue);
-
-    Queue * node = queue;
-    while(node != NULL){
-        char * request = createRequest(node->fileName);
-        sendHttpRequest(request);
+        int sock = sendHttpRequest(request);
         free(request);
-        node = node->next;
-    }
 
-    printQueue(queue);
-    freeQueue(queue);
-}                     /* Close socket and exit */
+        char * content = readHttpResponse(sock);
+
+        Queue * myQueue = findLinks(content);
+        free(content);
+
+
+        pthread_mutex_lock(&mtx);
+            Queue * node = myQueue;
+            while(node != NULL){
+                int addedNewFile = addToQueue(node->fileName, &queue);
+
+                //Basically, if the queue was 'empty' set nextFile to the newly added file
+                if(addedNewFile && nextFile == NULL){
+                    Queue * temp = queue;
+                    while(temp->next != NULL) temp = temp->next;
+                    nextFile = temp;
+                    pthread_cond_broadcast(&cond_nonempty);
+                }
+                node = node->next;
+            }
+        pthread_mutex_unlock(&mtx);
+
+        freeQueue(myQueue);
+
+    }
+}

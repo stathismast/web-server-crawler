@@ -14,6 +14,6 @@ typedef struct Queue{
 
 Queue * newQueue(char * term);
 void freeQueue(Queue * list);
-void addToQueue(char * term, Queue ** list);
+int addToQueue(char * term, Queue ** list);
 int getQueueLength(Queue * list);
 void printQueue(Queue * queue);

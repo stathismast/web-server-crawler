@@ -1,5 +1,5 @@
 all:
-	gcc -g -o crawler crawler.c queue.c
+	gcc -g -o mycrawler mycrawler.c crawler.c queue.c threads.c -pthread
 
 clean:
-	rm -f crawler
+	rm -f mycrawler
