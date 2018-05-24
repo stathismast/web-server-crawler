@@ -57,10 +57,11 @@ int main(int argc, char *argv[]){
     fds->fd = tempFD;
     fds->events = POLLIN;
     fds->revents = 0;
-    while(done != 1)
-            if(poll(fds,1,1000) != 1) printf("Poll is stopped with done = %d\n",done);
-    else printf("This would be some activity in the command port\n");
-    printf("done = %d, threads waiting = %d\n",done,threadsWaiting);
+
+    while(!done)
+        if(poll(fds,1,2000) != 1) { printf("poll is done\n"); if(done) break; }
+        else printf("Inform the command port that we are not done crawling\n");
+    // printf("Crawling has finished\n");
 
     // pthread_join(thread,0);
     for(int i=0; i<numberOfThreads; i++){

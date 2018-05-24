@@ -124,7 +124,6 @@ void * worker(void * argp){
     while(!done){
         pthread_mutex_lock(&mtx);
             while(nextFile == NULL){
-                printf("I'm %d and i'm about to go waitin'.\nThreads waiting = %d\nQueue is:\n",id,threadsWaiting); printQueue(queue);
                 threadsWaiting++;
                 if(threadsWaiting == numberOfThreads){
                     kill(getpid(),SIGUSR1);
@@ -133,7 +132,6 @@ void * worker(void * argp){
                     pthread_exit(0);
                 }
                 pthread_cond_wait(&cond_nonempty, &mtx);
-                printf("#%d stopped waiting with done = %d\n", id, done);
                 if(done){
                     threadsWaiting--;
                     pthread_mutex_unlock(&mtx);
@@ -144,8 +142,6 @@ void * worker(void * argp){
             char * request = createRequest(nextFile->fileName);
             nextFile = nextFile->next;
         pthread_mutex_unlock(&mtx);
-
-        printf("I'm #%d and im finna bout to ask for %s\n", id, request);
 
         int sock = sendHttpRequest(request);
         free(request);
