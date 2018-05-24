@@ -6,6 +6,10 @@
 #include <stdlib.h>                                         /* For exit */
 #include <string.h>                         /* For strlen, bzero, bcopy */
 #include <unistd.h>
+#include <poll.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 
 typedef struct Queue{
     char * fileName;           //String of term

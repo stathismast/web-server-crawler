@@ -3,10 +3,13 @@
 extern char * host;
 extern int port;
 
+extern int numberOfThreads;
+
 extern Queue * queue;
 extern Queue * nextFile;
 extern pthread_mutex_t mtx;
 extern pthread_cond_t cond_nonempty;
+int threadsWaiting = 0;
 
 extern int done;
 
@@ -121,8 +124,22 @@ void * worker(void * argp){
     while(!done){
         pthread_mutex_lock(&mtx);
             while(nextFile == NULL){
-                printf("I'm %d and i'm about to go waitin'. Queue is:\n",id); printQueue(queue);
+                printf("I'm %d and i'm about to go waitin'.\nThreads waiting = %d\nQueue is:\n",id,threadsWaiting); printQueue(queue);
+                threadsWaiting++;
+                if(threadsWaiting == numberOfThreads){
+                    kill(getpid(),SIGUSR1);
+                    threadsWaiting--;
+                    pthread_mutex_unlock(&mtx);
+                    pthread_exit(0);
+                }
                 pthread_cond_wait(&cond_nonempty, &mtx);
+                printf("#%d stopped waiting with done = %d\n", id, done);
+                if(done){
+                    threadsWaiting--;
+                    pthread_mutex_unlock(&mtx);
+                    pthread_exit(0);
+                }
+                threadsWaiting--;
             }
             char * request = createRequest(nextFile->fileName);
             nextFile = nextFile->next;

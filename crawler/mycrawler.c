@@ -12,6 +12,21 @@ int numberOfThreads = 10;
 pthread_t * threadPool;
 
 int done = 0;
+extern int threadsWaiting;
+
+void handler(){
+    printf("I am the handler\n");
+    done = 1;
+}
+
+//Temporarily using pipes unti I implement the command socket
+void createNamedPipe(char * pipeName){
+    unlink(pipeName);
+    if(mkfifo(pipeName, 0600) == -1){
+        perror("sender: mkfifo");
+        exit(6);
+    }
+}
 
 int main(int argc, char *argv[]){
 
@@ -24,18 +39,37 @@ int main(int argc, char *argv[]){
     pthread_mutex_init(&mtx, 0);
 	pthread_cond_init(&cond_nonempty, 0);
 
+
+    createNamedPipe("/tmp/thisWouldBeTheSocket");
+    int tempFD = open("/tmp/thisWouldBeTheSocket", O_RDWR);
+
+
     // pthread_t thread = createThread(worker, 0);
     //Create threadPool
+    signal(SIGUSR1,SIG_IGN);
     threadPool = malloc(numberOfThreads * sizeof(pthread_t));
     for(int i=0; i<numberOfThreads; i++){
         threadPool[i] = createThread(worker, i);
     }
+    signal(SIGUSR1,handler);
+
+    struct pollfd * fds = malloc(sizeof(struct pollfd));
+    fds->fd = tempFD;
+    fds->events = POLLIN;
+    fds->revents = 0;
+    while(done != 1)
+            if(poll(fds,1,1000) != 1) printf("Poll is stopped with done = %d\n",done);
+    else printf("This would be some activity in the command port\n");
+    printf("done = %d, threads waiting = %d\n",done,threadsWaiting);
 
     // pthread_join(thread,0);
     for(int i=0; i<numberOfThreads; i++){
+        pthread_cond_broadcast(&cond_nonempty);
         joinThread(threadPool[i]);
     }
 
+    free(fds);
+    free(threadPool);
 
     printQueue(queue);
     freeQueue(queue);
