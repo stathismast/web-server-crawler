@@ -10,7 +10,12 @@ extern pthread_mutex_t mtx;
 extern pthread_cond_t cond_nonempty;
 extern Queue * queue;
 
+unsigned long pagesServed = 0;
+unsigned long bytesSent = 0;
+
 extern int done;
+
+extern struct timeval startingTime;
 
 int createSocket(){
     int sock;
@@ -63,18 +68,97 @@ void acceptConnection(int sock){
         perror("accept"); exit(1);
     }
 
-    //Find clients address
-    // if ((rem = gethostbyaddr((char *) &client.sin_addr.s_addr,
-    //                                   sizeof client.sin_addr.s_addr,
-    //                                   client.sin_family)) == NULL) {
-    //     perror("gethostbyaddr"); exit(1);
-    // }
-    // printf("Accepted connection from %s\n", rem->h_name);
-
     //Safely add socket-fd in queue and signal the first available thread
     place(&queue, newsock);
     printf("producer: %d\n", newsock);
     pthread_cond_signal(&cond_nonempty);
+}
+
+char * getRunningTime(){
+    struct timeval tv;
+    char buffer[64];
+    int millisec;
+    struct tm* tm_info;
+    gettimeofday(&tv, NULL);
+
+    millisec = lrint((tv.tv_usec - startingTime.tv_usec)/10000.0); // Round to nearest millisec
+    if (millisec>=100) { // Allow for rounding up to nearest second
+        millisec -=100;
+        tv.tv_sec++;
+    }
+    else if(millisec < 0){
+        millisec += 100;
+        tv.tv_sec--;
+    }
+    tv.tv_sec = tv.tv_sec - startingTime.tv_sec;
+    tm_info = gmtime(&tv.tv_sec);
+
+    strftime(buffer, 64, "%H:%M:%S", tm_info);
+    sprintf(&buffer[strlen(buffer)],".%02d", millisec);
+
+    char * ret = malloc(strlen(buffer)+1);
+    strcpy(ret,(char *)&buffer);
+    return ret;
+}
+
+void acceptCommandConnection(int sock){
+    int newsock;
+    struct sockaddr_in client;
+    unsigned int clientlen;
+    struct hostent *rem;
+
+    //Accept connection
+    clientlen = sizeof client;
+    if ((newsock = accept(sock, (struct sockaddr *) &client, &clientlen)) < 0){
+        perror("accept"); exit(1);
+    }
+
+    char buf[128];
+    bzero(buf, sizeof buf); //Init buffer
+    if (read(newsock, buf, sizeof buf) < 0){ //Get message
+        perror("read");
+        close(newsock);
+        return;
+    }
+
+    buf[8] = 0;
+    if(strcmp(buf,"SHUTDOWN") == 0){
+        if (write(newsock, "Shutting down...\n", 18) < 0){
+            perror("write");
+            close(newsock);
+            return;
+        }
+        printf("Command request for shutdown\n");
+        close(newsock);
+        done = 1;
+        return;
+    }
+
+    buf[5] = 0;
+    if(strcmp(buf,"STATS") == 0){
+        bzero(buf,sizeof buf);
+
+        char * runningTime = getRunningTime();
+
+        sprintf(buf,"Server up for %s, served %li pages, %li bytes\n", runningTime, pagesServed, bytesSent);
+        free(runningTime);
+        if (write(newsock, buf, strlen(buf)+1) < 0){
+            perror("write");
+            close(newsock);
+            return;
+        }
+        printf("Command request for stats\n");
+    }
+    else{
+        if (write(newsock, "Invalid command.\n", 18) < 0){
+            perror("write");
+            close(newsock);
+            return;
+        }
+        printf("Invalid command.\n");
+    }
+    close(newsock);
+    return;
 }
 
 void place(Queue ** queue, int data) {
@@ -87,11 +171,17 @@ int obtain(Queue ** queue, int id) {
     int data = -1;
     pthread_mutex_lock(&mtx);
 
-        while ((*queue)->length <= 0 && !done) {
+        while ((*queue)->length <= 0 && !done){
             printf("#%d Will be waiting\n", id);
             pthread_cond_wait(&cond_nonempty, &mtx);
             printf("#%d Stopped waiting\n", id);
-            }
+        }
+
+        if(done){
+            pthread_mutex_unlock(&mtx);
+            return -1;
+        }
+
         // printf("#%d About to obtain, length is %d\n", id, (*queue)->length);
         data = popFromQueue(queue);
 
@@ -105,10 +195,7 @@ void * worker(void * argp){
         int fd = obtain(&queue, id);
         // printf("#%ld consumer: %d\n", (long) argp, fd);
 
-        if(fd == -1){
-            printf("#%d Value was -1\n", id);
-            continue;
-        }
+        if(fd == -1) break;
 
         serveRequest(fd, id);
     }
@@ -181,6 +268,9 @@ void serveRequest(int sock, int id){
         free(content);
         return;
     }
+
+    bytesSent += strlen(content);
+    pagesServed++;
 
     close(sock);           //Close socket
     free(htmlFile);

@@ -4,6 +4,8 @@
 int createSocket();
 void listenForConnections(int sock, int port);
 void acceptConnection(int sock);
+void acceptCommandConnection(int sock);
+char * getRunningTime();
 void * worker(void * argp);
 void serveRequest(int sock, int id);
 char * getFullAddress(char * relativeAddress);

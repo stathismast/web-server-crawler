@@ -7,6 +7,10 @@
 #include <string.h>                                /* For strlen, bzero */
 #include <pthread.h>                                    /* For threads  */
 #include <unistd.h>
+#include <poll.h>
+#include <time.h>
+#include <sys/time.h>
+#include <math.h>
 
 #define perrorThreads(s,e) fprintf(stderr, "%s: %s\n", s, strerror(e))
 
