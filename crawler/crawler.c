@@ -11,6 +11,8 @@ extern pthread_mutex_t mtx;
 extern pthread_cond_t cond_nonempty;
 int threadsWaiting = 0;
 
+extern char saveDir[64];
+
 extern int done;
 
 void getNextLine(int fd, char * line){
@@ -120,6 +122,86 @@ char * createRequest(char * fileName){
     return request;
 }
 
+void getDirectoryAndFileNames(char * request, char ** dir, char ** file){
+    char * directory, * fileName;
+    for(int i=0; i<strlen(request); i++){
+        if(request[i] == '/'){
+            char temp = 0;
+            int j;
+            for(j=i+1; j<strlen(request); j++){
+                if(request[j] == '/'){
+                    temp = request[j];
+                    request[j] = 0;
+                    break;
+                }
+            }
+            directory = malloc(strlen(&request[i+1])+1);
+            strcpy(directory,&request[i+1]);
+            request[j] = temp;
+            break;
+        }
+    }
+    for(int i=0; i<strlen(request); i++){
+        if(request[i] == '/'){
+            fileName = malloc(strlen(&request[i+1])+1);
+            strcpy(fileName,&request[i+1]);
+            break;
+        }
+    }
+
+    *dir = malloc(strlen(directory) + strlen(saveDir) + 2);
+    bzero(*dir,strlen(directory) + strlen(saveDir) + 2);
+    strcat(*dir,saveDir);
+    strcat(*dir,"/");
+    strcat(*dir,directory);
+    free(directory);
+
+    *file = malloc(strlen(fileName) + strlen(saveDir) + 2);
+    bzero(*file,strlen(fileName) + strlen(saveDir) + 2);
+    strcat(*file,saveDir);
+    strcat(*file,"/");
+    strcat(*file,fileName);
+    free(fileName);
+}
+
+void createDirectory(char * directory){
+	struct stat st = {0};
+	if (stat(directory, &st) == -1){
+		mkdir(directory, 0700);
+	}
+}
+
+void writeFile(char * fileName, char * content){
+    // char * clean = malloc(strlen(content)+1);   //String that will contain the
+    // bzero(clean,strlen(content)+1);             //content without html links
+    // int htmlLink = 0;
+    // for(int i=0; i<strlen(content); i++){
+    //     if(content[i] == '<') htmlLink = 1;
+    //     if(!htmlLink) clean[i] = content[i];
+    //     if(content[i] == '>') htmlLink = 0;
+    // }
+    // FILE *stream = fopen(fileName, "ab+");
+    // fprintf(stream,"%s",clean);
+
+    unlink(fileName); //Delete file if it already exists
+    FILE *stream = fopen(fileName, "ab+");
+    int offset = 0;
+    for(int i=0; i<strlen(content); i++){
+        if(content[i] == '<'){
+            char temp = content[i];
+            content[i] = 0;
+            if(offset != i) fprintf(stream,"%s",&content[offset]);
+            content[i] = temp;
+        }
+        else if(content[i] == '>'){
+            offset = i+1;
+        }
+    }
+
+    fclose(stream);
+    // free(clean);
+}
+
 void * worker(void * argp){
     int id = (long) argp;
     while(!done){
@@ -144,14 +226,13 @@ void * worker(void * argp){
             nextFile = nextFile->next;
         pthread_mutex_unlock(&mtx);
 
+        printf("#%d Threads waiting: %d\n",id,threadsWaiting);
+
         int sock = sendHttpRequest(request);
-        free(request);
 
         char * content = readHttpResponse(sock);
 
         Queue * myQueue = findLinks(content);
-        free(content);
-
 
         pthread_mutex_lock(&mtx);
             Queue * node = myQueue;
@@ -171,5 +252,20 @@ void * worker(void * argp){
 
         freeQueue(myQueue);
 
+        char * directoryName;
+        char * fileName;
+        getDirectoryAndFileNames(request,&directoryName,&fileName);
+
+                printf("%d About to go write file (%s)\n",id,fileName);
+        // printf("%d -%s-\n",id,directoryName);
+        createDirectory(directoryName);
+        writeFile(fileName,content);
+                printf("%d Done writing file (%s)\n",id,fileName);
+
+
+        free(directoryName);
+        free(fileName);
+        free(request);
+        free(content);
     }
 }

@@ -8,8 +8,10 @@ Queue * nextFile;
 pthread_mutex_t mtx;
 pthread_cond_t cond_nonempty;
 
-int numberOfThreads = 10;
+int numberOfThreads = 20;
 pthread_t * threadPool;
+
+char saveDir[64] = "save_dir";
 
 int done = 0;
 
@@ -57,8 +59,10 @@ int main(int argc, char *argv[]){
     fds->events = POLLIN;
     fds->revents = 0;
 
+    createDirectory(saveDir);
+
     while(!done)
-        if(poll(fds,1,2000) != 1) { printf("poll is done\n"); if(done) break; }
+        if(poll(fds,1,1000) != 1) { if(done) break; }
         else printf("Inform the command port that we are not done crawling\n");
     // printf("Crawling has finished\n");
 
@@ -72,5 +76,16 @@ int main(int argc, char *argv[]){
     free(threadPool);
 
     printQueue(queue);
+
+    unlink("index.txt");
+    FILE *stream = fopen("index.txt", "ab+");
+    Queue * node = queue;
+    while(node != NULL){
+        fprintf(stream,"%s",saveDir);
+        fprintf(stream,"%s\n",node->fileName);
+        node = node->next;
+    }
+    fclose(stream);
+
     freeQueue(queue);
 }                     /* Close socket and exit */
