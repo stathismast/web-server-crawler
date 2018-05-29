@@ -76,6 +76,7 @@ char * readHttpResponse(int sock){
 
     //Read file (by now we know the file's size)
     char * buffer = malloc(contentLength+1);
+    bzero(buffer,contentLength+1);
     if(read(sock, buffer, contentLength) < 0){         /* Receive message */
         perror("read"); exit(1);
     }

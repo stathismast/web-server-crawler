@@ -12,7 +12,6 @@ int numberOfThreads = 10;
 pthread_t * threadPool;
 
 int done = 0;
-extern int threadsWaiting;
 
 void handler(){
     printf("I am the handler\n");
