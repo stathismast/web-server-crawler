@@ -172,6 +172,8 @@ void createDirectory(char * directory){
 }
 
 void writeFile(char * fileName, char * content){
+    unlink(fileName); //Delete file if it already exists
+
     // char * clean = malloc(strlen(content)+1);   //String that will contain the
     // bzero(clean,strlen(content)+1);             //content without html links
     // int htmlLink = 0;
@@ -180,22 +182,34 @@ void writeFile(char * fileName, char * content){
     //     if(!htmlLink) clean[i] = content[i];
     //     if(content[i] == '>') htmlLink = 0;
     // }
+    // printf("Only now ready to write\n");
     // FILE *stream = fopen(fileName, "ab+");
-    // fprintf(stream,"%s",clean);
+    // fprintf(stream,"%s",content);
 
-    unlink(fileName); //Delete file if it already exists
+
+    // FILE *stream = fopen(fileName, "ab+");
+    // int offset = 0;
+    // for(int i=0; i<strlen(content); i++){
+    //     if(content[i] == '<'){
+    //         char temp = content[i];
+    //         content[i] = 0;
+    //         if(offset != i) fprintf(stream,"%s",&content[offset]);
+    //         content[i] = temp;
+    //     }
+    //     else if(content[i] == '>'){
+    //         offset = i+1;
+    //     }
+    // }
+
+
     FILE *stream = fopen(fileName, "ab+");
-    int offset = 0;
-    for(int i=0; i<strlen(content); i++){
-        if(content[i] == '<'){
-            char temp = content[i];
-            content[i] = 0;
-            if(offset != i) fprintf(stream,"%s",&content[offset]);
-            content[i] = temp;
-        }
-        else if(content[i] == '>'){
-            offset = i+1;
-        }
+
+    char * saveptr;
+    char * line = strtok_r(content,"\n",&saveptr);
+    while(line != NULL){
+        if(line[0] != '<')
+            fprintf(stream,"%s\n",line);
+        line = strtok_r(NULL,"\n",&saveptr);
     }
 
     fclose(stream);
