@@ -1,4 +1,5 @@
 #include "crawler.h"
+#include "jobExecSrc/jobExecutor.h"
 
 char * host;
 int port;
@@ -21,7 +22,7 @@ void handler(){
 }
 
 //Temporarily using pipes unti I implement the command socket
-void createNamedPipe(char * pipeName){
+void createTemporaryPipe(char * pipeName){
     unlink(pipeName);
     if(mkfifo(pipeName, 0600) == -1){
         perror("sender: mkfifo");
@@ -41,7 +42,7 @@ int main(int argc, char *argv[]){
 	pthread_cond_init(&cond_nonempty, 0);
 
 
-    createNamedPipe("/tmp/thisWouldBeTheSocket");
+    createTemporaryPipe("/tmp/thisWouldBeTheSocket");
     int tempFD = open("/tmp/thisWouldBeTheSocket", O_RDWR);
 
 
@@ -80,12 +81,23 @@ int main(int argc, char *argv[]){
     unlink("index.txt");
     FILE *stream = fopen("index.txt", "ab+");
     Queue * node = queue;
+    Queue * dirQueue = NULL;
     while(node != NULL){
-        fprintf(stream,"%s",saveDir);
+        addToQueue(strtok(node->fileName,"/"),&dirQueue);
+        node = node->next;
+    }
+    node = dirQueue;
+    while(node != NULL){
+        fprintf(stream,"%s/",saveDir);
         fprintf(stream,"%s\n",node->fileName);
         node = node->next;
     }
     fclose(stream);
 
     freeQueue(queue);
+    freeQueue(dirQueue);
+
+    jobExecutor("index.txt",4);
+
+    unlink("index.txt");
 }                     /* Close socket and exit */
