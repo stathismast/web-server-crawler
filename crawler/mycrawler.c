@@ -1,8 +1,9 @@
 #include "crawler.h"
-#include "jobExecSrc/jobExecutor.h"
 
 char * host;
 int port;
+int commandPort;
+int commandSocket;
 
 Queue * queue;
 Queue * nextFile;
@@ -55,16 +56,22 @@ int main(int argc, char *argv[]){
     }
     signal(SIGUSR1,handler);
 
-    struct pollfd * fds = malloc(sizeof(struct pollfd));
-    fds->fd = tempFD;
-    fds->events = POLLIN;
-    fds->revents = 0;
+    struct pollfd * commandPortFD = malloc(sizeof(struct pollfd));
+    commandSocket = createSocket();
+    listenForConnections(commandSocket, commandPort);
+    commandPortFD->fd = commandSocket;
+    commandPortFD->events = POLLIN;
+    commandPortFD->revents = 0;
 
     createDirectory(saveDir);
 
     while(!done)
-        if(poll(fds,1,1000) != 1) { if(done) break; }
-        else printf("Inform the command port that we are not done crawling\n");
+        if(poll(commandPortFD,1,1000) != 1) { if(done) break; }
+        else{
+            printf("Inform the command port that we are not done crawling\n");
+            acceptConnectionWhileCrawling(commandSocket);
+            commandPortFD->revents = 0;
+        }
     // printf("Crawling has finished\n");
 
     // pthread_join(thread,0);
@@ -73,7 +80,6 @@ int main(int argc, char *argv[]){
         joinThread(threadPool[i]);
     }
 
-    free(fds);
     free(threadPool);
 
     printQueue(queue);
@@ -99,5 +105,16 @@ int main(int argc, char *argv[]){
 
     jobExecutor("index.txt",4);
 
+    done = 0;
+    commandPortFD->revents = 0;
+    while(!done)
+        if(poll(commandPortFD,1,1000) != 1) { if(done) break; }
+        else{
+            acceptCommandConnection(commandSocket);
+            commandPortFD->revents = 0;
+        }
+
+    cleanUp();
+    free(commandPortFD);
     unlink("index.txt");
 }                     /* Close socket and exit */

@@ -73,8 +73,10 @@ void jobExecutor(char * docfile, int numberOfWorkers){
     printf("All workers up and running.\n");
 
     //This is the main loop for command input and output
-    commandInputLoop();
+    // commandInputLoop();
+}
 
+void cleanUp(){
     //Inform each worker to exit
     terminateWorkers();
 
@@ -109,7 +111,7 @@ void jobExecutor(char * docfile, int numberOfWorkers){
     }
     free(workers);
 }
-// 
+//
 // int main(int argc, char *argv[]){
 //     char * docfile;
 //     int numberOfWorkers;

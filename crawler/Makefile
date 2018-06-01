@@ -20,11 +20,11 @@ $(OUT): $(OBJS)
 	@$(CC) -g -o $(OUT) $(OBJS) $(OBJS1) -lm -pthread
 	@echo Object files linked, $(OUT) created.
 
-mycrawler.o: mycrawler.c crawler.o jobExecutor.o
+mycrawler.o: mycrawler.c crawler.o
 	@$(CC) $(FLAGS) mycrawler.c
 	@echo mycrawler.o created.
 
-crawler.o: crawler.c crawler.h threads.o queue.o
+crawler.o: crawler.c crawler.h threads.o queue.o jobExecutor.o
 	@$(CC) $(FLAGS) -o crawler.o crawler.c
 	@echo crawler.o created.
 

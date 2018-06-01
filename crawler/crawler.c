@@ -2,6 +2,7 @@
 
 extern char * host;
 extern int port;
+extern int commandPort;
 
 extern int numberOfThreads;
 
@@ -14,6 +15,170 @@ int threadsWaiting = 0;
 extern char saveDir[64];
 
 extern int done;
+
+int createSocket(){
+    int sock;
+    if ((sock = socket(PF_INET, SOCK_STREAM, 0)) < 0){
+        perror("socket"); exit(1);
+    }
+    return sock;
+}
+
+void listenForConnections(int sock, int port){
+    struct sockaddr_in server;
+    struct sockaddr *serverptr;
+    unsigned int serverlen;
+
+    server.sin_family = PF_INET;                      /* Internet domain */
+    server.sin_addr.s_addr = htonl(INADDR_ANY);   /* My Internet address */
+    server.sin_port = htons(port);                     /* The given port */
+    serverptr = (struct sockaddr *) &server;
+    serverlen = sizeof server;
+
+    //Bind socket to address
+    if (bind(sock, serverptr, serverlen) < 0) {
+        perror("bind"); exit(1);
+    }
+
+    //Listen for connections
+    if (listen(sock, 512) < 0){
+        perror("listen"); exit(1);
+    }
+    printf("Listening for connections to port %d\n", port);
+}
+
+void acceptConnectionWhileCrawling(int sock){
+    int newsock;
+    struct sockaddr_in client;
+    unsigned int clientlen;
+    struct hostent *rem;
+
+    //Accept connection
+    clientlen = sizeof client;
+    if ((newsock = accept(sock, (struct sockaddr *) &client, &clientlen)) < 0){
+        perror("accept"); exit(1);
+    }
+
+    char buf[128];
+    bzero(buf, sizeof buf); //Init buffer
+    if (read(newsock, buf, sizeof buf) < 0){ //Get message
+        perror("read");
+        close(newsock);
+        return;
+    }
+
+    if (write(newsock, "Crawling still in progress\n", 28) < 0){
+        perror("write");
+        close(newsock);
+        return;
+    }
+    close(newsock);
+    return;
+}
+
+void acceptCommandConnection(int sock){
+    int newsock;
+    struct sockaddr_in client;
+    unsigned int clientlen;
+    struct hostent *rem;
+
+    //Accept connection
+    clientlen = sizeof client;
+    if ((newsock = accept(sock, (struct sockaddr *) &client, &clientlen)) < 0){
+        perror("accept"); exit(1);
+    }
+
+    char buf[128];
+    ssize_t bytesRead;
+    bzero(buf, sizeof buf); //Init buffer
+    if (bytesRead = read(newsock, buf, sizeof buf) < 0){ //Get message
+        perror("read");
+        close(newsock);
+        return;
+    }
+
+    char temp = buf[8];
+    buf[8] = 0;
+    if(strcmp(buf,"SHUTDOWN") == 0){
+        if (write(newsock, "Shutting down...\n", 18) < 0){
+            perror("write");
+            close(newsock);
+            return;
+        }
+        printf("Command request for shutdown\n");
+        close(newsock);
+        done = 1;
+        return;
+    }
+    buf[8] = temp;
+
+    buf[6] = 0;
+    if(strcmp(buf,"SEARCH") == 0){
+        if (write(newsock, "Searching...\n", 14) < 0){
+            perror("write");
+            close(newsock);
+            return;
+        }
+        buf[6] = ' ';
+
+        char * saveptr;
+        char * token = strtok_r(buf," \r\n",&saveptr);
+
+        int termCount = 0;
+        char * searchTerms[10];
+        while(token != NULL && termCount < 10){
+            if(strcmp(token,"SEARCH") == 0){
+                token = strtok_r(NULL," \r\n",&saveptr);
+                continue;
+            }
+            printf("-%s-\n",token);
+            searchTerms[termCount] = malloc(strlen(token)+1);
+            strcpy(searchTerms[termCount],token);
+            termCount++;
+            token = strtok_r(NULL," \r\n",&saveptr);
+        }
+
+        if(termCount == 0){
+            if (write(newsock, "No search terms given\n", 23) < 0){
+                perror("write");
+                close(newsock);
+                return;
+            }
+        }
+
+        dup2(newsock,STDOUT_FILENO);
+        executeSearch((char **)searchTerms,termCount,5);
+        dup2(2,STDOUT_FILENO);
+
+        for(int i=0; i<termCount; i++){
+            free(searchTerms[i]);
+        }
+        close(newsock);
+        return;
+    }
+
+    buf[5] = 0;
+    if(strcmp(buf,"STATS") == 0){
+        bzero(buf,sizeof buf);
+        sprintf(buf,"Server up for X served X pages, X bytes\n");
+        if (write(newsock, buf, strlen(buf)+1) < 0){
+            perror("write");
+            close(newsock);
+            return;
+        }
+        printf("Command request for stats\n");
+    }
+    else{
+        if (write(newsock, "Invalid command.\n", 18) < 0){
+            perror("write");
+            close(newsock);
+            return;
+        }
+        printf("Invalid command.\n");
+    }
+    close(newsock);
+    return;
+}
 
 void getNextLine(int fd, char * line){
     int pos = 0;
@@ -107,11 +272,12 @@ Queue * findLinks(char * content){
 }
 
 void manageArguments(int argc, char *argv[]){
-    if(argc < 3){
+    if(argc < 4){
         printf("Please give host name and port number\n"); exit(1);
     }
     host = argv[1];
     port = atoi(argv[2]);
+    commandPort = atoi(argv[3]);
 }
 
 char * createRequest(char * fileName){

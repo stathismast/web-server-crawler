@@ -218,44 +218,8 @@ void minCount(char * keyword){
     free(fds);
 }
 
-//Function in charge of executing the /search command
-void search(){
+void executeSearch(char ** searchTerms, int termCount, int dl){
     char msgbuf[MSGSIZE+1];
-    int termCount = 0;
-    char * searchTerms[12] = {NULL};
-    char * term;
-
-    //Read and store every search term
-    for(int i=0; i<12; i++)
-        if((term = strtok(NULL, " \t\n")) != NULL){
-            searchTerms[i] = malloc(strlen(term)+1);
-            memcpy(searchTerms[i], term, strlen(term));
-            searchTerms[i][strlen(term)] = 0;
-            termCount++;
-        } else break;
-
-    //Check that search command is valid and store the deadline argument
-    int pos = 0;
-    while(pos<termCount){
-        if(strcmp(searchTerms[pos],"-d") == 0) break;
-        pos++;
-    }
-    if(pos != termCount-2){
-        printf("Error: Invalid /search command\n");
-        for(int i=0; i<termCount; i++)
-            free(searchTerms[i]);
-        return;
-    }
-    int dl = atoi(searchTerms[termCount-1]);
-    if(dl <= 0){
-        printf("Error: Invalid /search command: -d argument must be a number greater than 0\n");
-        for(int i=0; i<termCount; i++)
-            free(searchTerms[i]);
-        return;
-    }
-    termCount -= 2; //Reduce value of termCount because two of those
-                    //terms were '-d' and the deadline value that was given
-
     //Inform workers that we are about to run a search command
     for(int i=0; i<w; i++)
         writeToChild(i,"/search");
@@ -319,11 +283,51 @@ void search(){
                     fds[i].fd = 0;
                 }
     }
+    free(fds);
+}
+
+//Function in charge of executing the /search command
+void search(){
+    int termCount = 0;
+    char * searchTerms[12] = {NULL};
+    char * term;
+
+    //Read and store every search term
+    for(int i=0; i<12; i++)
+        if((term = strtok(NULL, " \t\n")) != NULL){
+            searchTerms[i] = malloc(strlen(term)+1);
+            memcpy(searchTerms[i], term, strlen(term));
+            searchTerms[i][strlen(term)] = 0;
+            termCount++;
+        } else break;
+
+    //Check that search command is valid and store the deadline argument
+    int pos = 0;
+    while(pos<termCount){
+        if(strcmp(searchTerms[pos],"-d") == 0) break;
+        pos++;
+    }
+    if(pos != termCount-2){
+        printf("Error: Invalid /search command\n");
+        for(int i=0; i<termCount; i++)
+            free(searchTerms[i]);
+        return;
+    }
+    int dl = atoi(searchTerms[termCount-1]);
+    if(dl <= 0){
+        printf("Error: Invalid /search command: -d argument must be a number greater than 0\n");
+        for(int i=0; i<termCount; i++)
+            free(searchTerms[i]);
+        return;
+    }
+    termCount -= 2; //Reduce value of termCount because two of those
+                    //terms were '-d' and the deadline value that was given
+
+    executeSearch((char **)searchTerms, termCount, dl);
 
     //Deallocate used space
     for(int i=0; i<termCount+2; i++)
         free(searchTerms[i]);
-    free(fds);
 }
 
 //Receiver the /wc statistics from each worker
