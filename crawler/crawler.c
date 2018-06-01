@@ -146,9 +146,10 @@ void acceptCommandConnection(int sock){
             }
         }
 
-        dup2(newsock,STDOUT_FILENO);
+        int storedSTDOUT = dup(STDOUT_FILENO);  //Store stdout
+        dup2(newsock,STDOUT_FILENO);            //Redirect stdout to socket
         executeSearch((char **)searchTerms,termCount,5);
-        dup2(2,STDOUT_FILENO);
+        dup2(storedSTDOUT,STDOUT_FILENO);       //Restore stdout
 
         for(int i=0; i<termCount; i++){
             free(searchTerms[i]);
