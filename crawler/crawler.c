@@ -393,13 +393,13 @@ void * worker(void * argp){
                     kill(getpid(),SIGUSR1);
                     threadsWaiting--;
                     pthread_mutex_unlock(&mtx);
-                    pthread_exit(0);
+                    return 0;
                 }
                 pthread_cond_wait(&cond_nonempty, &mtx);
                 if(done){
                     threadsWaiting--;
                     pthread_mutex_unlock(&mtx);
-                    pthread_exit(0);
+                    return 0;
                 }
                 threadsWaiting--;
             }
