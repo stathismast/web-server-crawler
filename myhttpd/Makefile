@@ -1,6 +1,6 @@
-OBJS      = myhttpd.o server.o threads.o queue.o
-SOURCE    = myhttpd.c server.c threads.c queue.c
-HEADER    = server.h threads.h queue.h
+OBJS      = myhttpd.o server.o queue.o threads.o
+SOURCE    = myhttpd.c server.c queue.c threads.c
+HEADER    = server.h queue.h threads.h
 OUT       = myhttpd
 CC        = gcc
 FLAGS     = -g -c

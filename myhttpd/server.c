@@ -201,7 +201,7 @@ void * worker(void * argp){
     }
 
     printf("#%d Done has value %d\n", id, done);
-    pthread_exit(0);
+    return 0;
 }
 
 void serveRequest(int sock, int id){
