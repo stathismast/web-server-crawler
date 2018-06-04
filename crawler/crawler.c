@@ -13,6 +13,10 @@ extern pthread_mutex_t mtx;
 extern pthread_cond_t cond_nonempty;
 int threadsWaiting = 0;
 
+extern struct timeval startingTime;       //Start time in seconds
+unsigned long pagesRecv = 0;
+unsigned long bytesRecv = 0;
+
 extern char saveDir[64];
 
 extern int done;
@@ -75,6 +79,33 @@ void acceptConnectionWhileCrawling(int sock){
     }
     close(newsock);
     return;
+}
+
+char * getRunningTime(){
+    struct timeval tv;
+    char buffer[64];
+    int millisec;
+    struct tm* tm_info;
+    gettimeofday(&tv, NULL);
+
+    millisec = lrint((tv.tv_usec - startingTime.tv_usec)/10000.0); // Round to nearest millisec
+    if (millisec>=100) { // Allow for rounding up to nearest second
+        millisec -=100;
+        tv.tv_sec++;
+    }
+    else if(millisec < 0){
+        millisec += 100;
+        tv.tv_sec--;
+    }
+    tv.tv_sec = tv.tv_sec - startingTime.tv_sec;
+    tm_info = gmtime(&tv.tv_sec);
+
+    strftime(buffer, 64, "%H:%M:%S", tm_info);
+    sprintf(&buffer[strlen(buffer)],".%02d", millisec);
+
+    char * ret = malloc(strlen(buffer)+1);
+    strcpy(ret,(char *)&buffer);
+    return ret;
 }
 
 void acceptCommandConnection(int sock){
@@ -161,8 +192,12 @@ void acceptCommandConnection(int sock){
 
     buf[5] = 0;
     if(strcmp(buf,"STATS") == 0){
+        char * runningTime = getRunningTime();
+
         bzero(buf,sizeof buf);
-        sprintf(buf,"Server up for X served X pages, X bytes\n");
+        sprintf(buf,"Server up for %s, served %li pages, %li bytes\n", runningTime, pagesRecv, bytesRecv);
+        free(runningTime);
+
         if (write(newsock, buf, strlen(buf)+1) < 0){
             perror("write");
             close(newsock);
@@ -244,6 +279,8 @@ char * readHttpResponse(int sock){
     } while(strcmp(line,"\n") != 0);
 
     //Read file (by now we know the file's size)
+    bytesRecv += contentLength-1;
+    pagesRecv++;
     char * buffer = malloc(contentLength+1);
     bzero(buffer,contentLength+1);
     if(read(sock, buffer, contentLength) < 0){         /* Receive message */

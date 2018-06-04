@@ -5,6 +5,7 @@
 int createSocket();
 void listenForConnections(int sock, int port);
 void acceptConnectionWhileCrawling(int sock);
+char * getRunningTime();
 void acceptCommandConnection(int sock);
 void getNextLine(int fd, char * line);
 int findQuotations(char * str);

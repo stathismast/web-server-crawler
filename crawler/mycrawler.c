@@ -16,6 +16,8 @@ pthread_t * threadPool;
 
 char saveDir[64] = "save_dir";
 
+struct timeval startingTime;       //Start time in seconds
+
 int done = 0;
 
 void handler(){
@@ -24,6 +26,7 @@ void handler(){
 }
 
 int main(int argc, char *argv[]){
+    gettimeofday(&startingTime, NULL);
 
     manageArguments(argc,argv);
 
