@@ -4,6 +4,7 @@ char * host;
 int port;
 int commandPort;
 int commandSocket;
+char * startingURL;
 
 Queue * queue;
 Queue * nextFile;
@@ -22,30 +23,16 @@ void handler(){
     done = 1;
 }
 
-//Temporarily using pipes unti I implement the command socket
-void createTemporaryPipe(char * pipeName){
-    unlink(pipeName);
-    if(mkfifo(pipeName, 0600) == -1){
-        perror("sender: mkfifo");
-        exit(6);
-    }
-}
-
 int main(int argc, char *argv[]){
 
     manageArguments(argc,argv);
 
     queue = NULL;   //Initialize queue to NULL
-    addToQueue("/site2/page7_16864.html",&queue);
+    addToQueue(startingURL,&queue);
     nextFile = queue;
 
     pthread_mutex_init(&mtx, 0);
 	pthread_cond_init(&cond_nonempty, 0);
-
-
-    createTemporaryPipe("/tmp/thisWouldBeTheSocket");
-    int tempFD = open("/tmp/thisWouldBeTheSocket", O_RDWR);
-
 
     // pthread_t thread = createThread(worker, 0);
     //Create threadPool
@@ -102,6 +89,7 @@ int main(int argc, char *argv[]){
 
     freeQueue(queue);
     freeQueue(dirQueue);
+    free(startingURL);
 
     jobExecutor("index.txt",4);
 

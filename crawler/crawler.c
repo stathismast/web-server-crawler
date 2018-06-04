@@ -3,6 +3,7 @@
 extern char * host;
 extern int port;
 extern int commandPort;
+extern char * startingURL;
 
 extern int numberOfThreads;
 
@@ -273,12 +274,15 @@ Queue * findLinks(char * content){
 }
 
 void manageArguments(int argc, char *argv[]){
-    if(argc < 4){
-        printf("Please give host name and port number\n"); exit(1);
+    if(argc < 5){
+        printf("Please give host name, server port number, command port number and starting url\n"); exit(1);
     }
     host = argv[1];
     port = atoi(argv[2]);
     commandPort = atoi(argv[3]);
+    startingURL = malloc(strlen(argv[4]) + 1);
+    bzero(startingURL,strlen(argv[4]) + 1);
+    strcpy(startingURL,argv[4]);
 }
 
 char * createRequest(char * fileName){
