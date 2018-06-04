@@ -195,7 +195,7 @@ void acceptCommandConnection(int sock){
         char * runningTime = getRunningTime();
 
         bzero(buf,sizeof buf);
-        sprintf(buf,"Server up for %s, served %li pages, %li bytes\n", runningTime, pagesRecv, bytesRecv);
+        sprintf(buf,"Crawler up for %s, downloaded %li pages, %li bytes\n", runningTime, pagesRecv, bytesRecv);
         free(runningTime);
 
         if (write(newsock, buf, strlen(buf)+1) < 0){
@@ -225,6 +225,7 @@ void getNextLine(int fd, char * line){
         pos++;
     } while(line[pos-1] != '\n');
 }
+
 //Return the offset to the first quotation (") character in a given string
 int findQuotations(char * str){
     int offset = 0;
@@ -411,14 +412,15 @@ void writeFile(char * fileName, char * content){
 
 
     FILE *stream = fopen(fileName, "ab+");
+    fprintf(stream,"%s",content);
 
-    char * saveptr;
-    char * line = strtok_r(content,"\n",&saveptr);
-    while(line != NULL){
-        if(line[0] != '<')
-            fprintf(stream,"%s\n",line);
-        line = strtok_r(NULL,"\n",&saveptr);
-    }
+    // char * saveptr;
+    // char * line = strtok_r(content,"\n",&saveptr);
+    // while(line != NULL){
+    //     if(line[0] != '<')
+    //         fprintf(stream,"%s\n",line);
+    //     line = strtok_r(NULL,"\n",&saveptr);
+    // }
 
     fclose(stream);
     // free(clean);
