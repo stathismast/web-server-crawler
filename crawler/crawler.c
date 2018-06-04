@@ -129,9 +129,21 @@ void acceptCommandConnection(int sock){
         return;
     }
 
-    char temp = buf[8];
-    buf[8] = 0;
-    if(strcmp(buf,"SHUTDOWN") == 0){
+    char * temp = strtok(buf," \r\n");
+
+    if(temp == NULL){
+        if (write(newsock, "Invalid command.\n", 18) < 0){
+            perror("write");
+            close(newsock);
+            return;
+        }
+        printf("Invalid command.\n");
+        close(newsock);
+        return;
+    }
+
+
+    if(strcmp(temp,"SHUTDOWN") == 0){
         if (write(newsock, "Shutting down...\n", 18) < 0){
             perror("write");
             close(newsock);
@@ -142,32 +154,26 @@ void acceptCommandConnection(int sock){
         done = 1;
         return;
     }
-    buf[8] = temp;
 
-    buf[6] = 0;
-    if(strcmp(buf,"SEARCH") == 0){
+    if(strcmp(temp,"SEARCH") == 0){
         if (write(newsock, "Searching...\n", 14) < 0){
             perror("write");
             close(newsock);
             return;
         }
-        buf[6] = ' ';
-
-        char * saveptr;
-        char * token = strtok_r(buf," \r\n",&saveptr);
 
         int termCount = 0;
         char * searchTerms[10];
-        while(token != NULL && termCount < 10){
-            if(strcmp(token,"SEARCH") == 0){
-                token = strtok_r(NULL," \r\n",&saveptr);
+        while(temp != NULL && termCount < 10){
+            if(strcmp(temp,"SEARCH") == 0){
+                temp = strtok(NULL," \r\n");
                 continue;
             }
-            printf("-%s-\n",token);
-            searchTerms[termCount] = malloc(strlen(token)+1);
-            strcpy(searchTerms[termCount],token);
+            printf("-%s-\n",temp);
+            searchTerms[termCount] = malloc(strlen(temp)+1);
+            strcpy(searchTerms[termCount],temp);
             termCount++;
-            token = strtok_r(NULL," \r\n",&saveptr);
+            temp = strtok(NULL," \r\n");
         }
 
         if(termCount == 0){
@@ -190,8 +196,7 @@ void acceptCommandConnection(int sock){
         return;
     }
 
-    buf[5] = 0;
-    if(strcmp(buf,"STATS") == 0){
+    if(strcmp(temp,"STATS") == 0){
         char * runningTime = getRunningTime();
 
         bzero(buf,sizeof buf);
