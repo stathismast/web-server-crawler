@@ -121,8 +121,8 @@ void acceptCommandConnection(int sock){
         return;
     }
 
-    buf[8] = 0;
-    if(strcmp(buf,"SHUTDOWN") == 0){
+    char * temp = strtok(buf," \r\n");
+    if(strcmp(temp,"SHUTDOWN") == 0){
         if (write(newsock, "Shutting down...\n", 18) < 0){
             perror("write");
             close(newsock);
@@ -134,8 +134,7 @@ void acceptCommandConnection(int sock){
         return;
     }
 
-    buf[5] = 0;
-    if(strcmp(buf,"STATS") == 0){
+    if(strcmp(temp,"STATS") == 0){
         bzero(buf,sizeof buf);
 
         char * runningTime = getRunningTime();
