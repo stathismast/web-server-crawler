@@ -70,6 +70,31 @@ void addWord(char * word, int id, TrieNode ** node){
 
 //Add words from a string (line) to a given trie and return the total number of words in that string/line
 int addWordsIntoTrie(char * line, int id, TrieNode ** trie){
+    //If this is an html tag
+    if(line[0] == '<'){
+        // printf("----%s----\n",line);
+        if(strstr(line,"href")){
+            int linkStart = 0;
+            while(line[linkStart] != '>' && linkStart < strlen(line)){
+                linkStart++;
+            }
+            if(linkStart != strlen(line)){
+                linkStart++;
+                int linkEnd = linkStart;
+                while(line[linkEnd] != '<' && linkEnd < strlen(line)){
+                    linkEnd++;
+                }
+                if(linkEnd != strlen(line)){
+                    line[linkEnd] = 0;
+                    printf("----%s----\n",&line[linkStart]);
+                    addWord(&line[linkStart], id, trie);
+                    return 1;
+                }
+            }
+        }
+        return 0;
+    }
+
     int start = 0;
     int end;
     char * string;
@@ -81,7 +106,9 @@ int addWordsIntoTrie(char * line, int id, TrieNode ** trie){
         if(string == NULL) { printf("ERROR: Memory allocation failed.\n"); exit(-1); }
         memcpy(string, &line[start], end - start);                    //Store it in a new string
         string[end - start] = 0;                                    //Add null character at the end
+
         addWord(string, id, trie);                                    //Insert it into the trie
+
         free(string);                                                //Deallocate space for the word
 
         start = end;        //Set start of the next word at the end of the current one
