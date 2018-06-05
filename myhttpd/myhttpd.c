@@ -1,27 +1,27 @@
 #include "server.h"
 
-char * rootDir;
-int servPort;
-int commPort;
+char * rootDir;     //Root directory
+int servPort;       //Server port
+int commPort;       //Command post
 
-pthread_mutex_t mtx;
-pthread_cond_t cond_nonempty;
-Queue * queue;
+pthread_mutex_t mtx;            //Mutex to lock queue
+pthread_cond_t cond_nonempty;   //Condition signaling that the queue is nonempty
+Queue * queue;                  //Queue with pending requests
 
-int numberOfThreads;
-pthread_t * threadPool;
+int numberOfThreads;            //Total number of threads
+pthread_t * threadPool;         //Pool of threads
 
-int done = 0;
+int done = 0;                   //Boolean variable used to terminate threads
 
-int verbose = 0;
+int verbose = 0;                //Boolean variable to enable verbose output
 
 struct timeval startingTime;       //Start time in seconds
 
 int main(int argc, char *argv[]){
-    gettimeofday(&startingTime, NULL);
-
     int servSocket;
     int commSocket;
+
+    gettimeofday(&startingTime, NULL);  //Get starting time
 
     //Manage arguments
     manageArguments(argc,argv);
@@ -29,6 +29,7 @@ int main(int argc, char *argv[]){
     //Initialize queue
     initQueue(&queue);
 
+    //Initialize mutex and condition variable
 	pthread_mutex_init(&mtx, 0);
 	pthread_cond_init(&cond_nonempty, 0);
 
@@ -38,7 +39,7 @@ int main(int argc, char *argv[]){
         threadPool[i] = createThread(worker, i);
     }
 
-
+    //Create pollfd structs for both the server and the command socket
     struct pollfd * sockets = malloc(2*sizeof(struct pollfd));
 
     servSocket = createSocket();
@@ -55,6 +56,7 @@ int main(int argc, char *argv[]){
 
     printf("Server up and running...\n");
 
+    //Poll for GET requests (on server port) or commands (on command port)
     int requests = 0;
     while(!done){
         requests = poll(sockets,2,1000);
@@ -70,6 +72,8 @@ int main(int argc, char *argv[]){
         }
     }
 
+    //When we get to this point, variable 'done' has a value of 1, so we
+    //Signal the threads to exit and join
     pthread_cond_broadcast(&cond_nonempty);
     for(int i=0; i<numberOfThreads; i++){
         joinThread(threadPool[i]);

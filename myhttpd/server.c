@@ -22,6 +22,7 @@ extern struct timeval startingTime;
 
 extern int verbose;
 
+//Create and return a socket
 int createSocket(){
     int sock;
     if ((sock = socket(PF_INET, SOCK_STREAM, 0)) < 0){
@@ -30,6 +31,7 @@ int createSocket(){
     return sock;
 }
 
+//Listen for connection in a given socket and port
 void listenForConnections(int sock, int port){
     struct sockaddr_in server;
     struct sockaddr *serverptr;
@@ -53,6 +55,8 @@ void listenForConnections(int sock, int port){
     if(verbose) printf("Listening for connections to port %d\n", port);
 }
 
+//Given a file, return the full address of that file, based on the given known
+//root directory
 char * getFullAddress(char * relativeAddress){
     char * htmlFile = malloc(strlen(rootDir) + strlen(relativeAddress) + 1);
     htmlFile[0] = 0;
@@ -61,6 +65,7 @@ char * getFullAddress(char * relativeAddress){
     return htmlFile;
 }
 
+//Accept connection a given socket
 void acceptConnection(int sock){
     int newsock;
     struct sockaddr_in client;
@@ -75,10 +80,11 @@ void acceptConnection(int sock){
 
     //Safely add socket-fd in queue and signal the first available thread
     place(&queue, newsock);
-    if(verbose) printf("producer: %d\n", newsock);
+    if(verbose) printf("Adding: %d\n", newsock);
     pthread_cond_signal(&cond_nonempty);
 }
 
+//Return the current running time
 char * getRunningTime(){
     struct timeval tv;
     char buffer[64];
@@ -106,6 +112,7 @@ char * getRunningTime(){
     return ret;
 }
 
+//Accept and serve a connection on a command port/socket
 void acceptCommandConnection(int sock){
     int newsock;
     struct sockaddr_in client;
@@ -177,12 +184,15 @@ void acceptCommandConnection(int sock){
     return;
 }
 
+//Safely add a file descriptor to our queue
 void place(Queue ** queue, int data) {
     pthread_mutex_lock(&mtx);
         addToQueue(data,queue);
     pthread_mutex_unlock(&mtx);
 }
 
+//Safely pop the first file descriptor for the queue as long the queue is not
+//empty. If it is empty, wait for the condition variable
 int obtain(Queue ** queue, int id) {
     int data = -1;
     pthread_mutex_lock(&mtx);
@@ -197,12 +207,14 @@ int obtain(Queue ** queue, int id) {
             pthread_mutex_unlock(&mtx);
             return -1;
         }
+
         data = popFromQueue(queue);
 
     pthread_mutex_unlock(&mtx);
     return data;
 }
 
+//Main thread function
 void * worker(void * argp){
     int id = (long) argp;
     while (!done) {
@@ -217,6 +229,7 @@ void * worker(void * argp){
     return 0;
 }
 
+//Serve a GET request on a given socket fd
 void serveRequest(int sock, int id){
     char buf[4096];
     bzero(buf, sizeof buf); //Init buffer
@@ -226,7 +239,7 @@ void serveRequest(int sock, int id){
         return;
     }
 
-    //Check that we received a GET command
+    //Check that we received a valid GET command
     strtok(buf," ");
     if(strcmp(buf,"GET") != 0 ){
         if (write(sock, notGet, sizeof notGet) < 0){
@@ -271,12 +284,12 @@ void serveRequest(int sock, int id){
         return;
     }
 
-    char * htmlResponse = createResponse(content);
-    if (write(sock, htmlResponse, (int)strlen(htmlResponse)+1) < 0){//Send message
+    char * httpResponse = createResponse(content);
+    if (write(sock, httpResponse, (int)strlen(httpResponse)+1) < 0){//Send message
         perror("write");
         close(sock);           //Close socket
         free(htmlFile);
-        free(htmlResponse);
+        free(httpResponse);
         free(content);
         return;
     }
@@ -286,23 +299,24 @@ void serveRequest(int sock, int id){
 
     close(sock);           //Close socket
     free(htmlFile);
-    free(htmlResponse);
+    free(httpResponse);
     free(content);
 }
 
+//Create an HTTP response
 char * createResponse(char * content){
     char contentLength[1024];
-    char * htmlResponse = malloc(512 + strlen(content));
-    htmlResponse[0] = 0;
-    strcat(htmlResponse,"HTTP/1.1 200 OK\n");
-    strcat(htmlResponse,"Date: Mon, 27 May 2018 12:28:53 GMT\n");
-    strcat(htmlResponse,"Server: myhttpd/1.0.0 (Ubuntu64)\n");
+    char * httpResponse = malloc(512 + strlen(content));
+    httpResponse[0] = 0;
+    strcat(httpResponse,"HTTP/1.1 200 OK\n");
+    strcat(httpResponse,"Date: Mon, 27 May 2018 12:28:53 GMT\n");
+    strcat(httpResponse,"Server: myhttpd/1.0.0 (Ubuntu64)\n");
     sprintf(contentLength,"Content-Length: %d\n",(int)strlen(content)+1);
-    strcat(htmlResponse,contentLength);
-    strcat(htmlResponse,"Content-Type: text/html\n");
-    strcat(htmlResponse,"Connection: Closed\n\n");
-    strcat(htmlResponse,content);
-    return htmlResponse;
+    strcat(httpResponse,contentLength);
+    strcat(httpResponse,"Content-Type: text/html\n");
+    strcat(httpResponse,"Connection: Closed\n\n");
+    strcat(httpResponse,content);
+    return httpResponse;
 }
 
 //Count the number of bytes in a given file
