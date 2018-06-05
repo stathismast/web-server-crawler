@@ -138,7 +138,7 @@ void acceptCommandConnection(int sock){
             close(newsock);
             return;
         }
-        if(verbose) printf("Invalid command.\n");
+        printf("Received invalid command.\n");
         close(newsock);
         return;
     }
