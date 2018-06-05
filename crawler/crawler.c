@@ -290,8 +290,14 @@ char * readHttpResponse(int sock){
     pagesRecv++;
     char * buffer = malloc(contentLength+1);
     bzero(buffer,contentLength+1);
-    if(read(sock, buffer, contentLength) < 0){         /* Receive message */
-        perror("read"); exit(1);
+
+    ssize_t bytesRead = 0;
+    ssize_t retval;
+    while(bytesRead < contentLength){
+        if((retval = read(sock, &buffer[bytesRead], contentLength-bytesRead)) < 0){         /* Receive message */
+            perror("read"); exit(1);
+        }
+	bytesRead += retval;
     }
     buffer[contentLength] = 0;
 
