@@ -394,6 +394,12 @@ void manageArguments(int argc, char *argv[]){
         }
         pos+=2;
     }
-    printf("Server running on port %d with %d threads.\n",servPort,numberOfThreads);
-    printf("Command port is %d and root directory is %s.\n",commPort,rootDir);
+    if(gotServingPort && gotCommandPort && gotRootDir && gotNumOfThreads){
+        printf("Server running on port %d with %d threads.\n",servPort,numberOfThreads);
+        printf("Command port is %d and root directory is %s.\n",commPort,rootDir);
+    }
+    else{
+        invalidArguments();
+        exit(1);
+    }
 }
