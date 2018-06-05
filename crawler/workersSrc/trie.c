@@ -72,7 +72,6 @@ void addWord(char * word, int id, TrieNode ** node){
 int addWordsIntoTrie(char * line, int id, TrieNode ** trie){
     //If this is an html tag
     if(line[0] == '<'){
-        // printf("----%s----\n",line);
         if(strstr(line,"href")){
             int linkStart = 0;
             while(line[linkStart] != '>' && linkStart < strlen(line)){
@@ -86,7 +85,6 @@ int addWordsIntoTrie(char * line, int id, TrieNode ** trie){
                 }
                 if(linkEnd != strlen(line)){
                     line[linkEnd] = 0;
-                    printf("----%s----\n",&line[linkStart]);
                     addWord(&line[linkStart], id, trie);
                     return 1;
                 }
