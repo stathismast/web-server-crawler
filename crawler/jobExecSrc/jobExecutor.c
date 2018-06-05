@@ -37,7 +37,6 @@ void jobExecutor(char * docfile, int numberOfWorkers){
     numberOfDirectories = getLines(docfile,&allDirectories);
     if(w>numberOfDirectories){
         w = numberOfDirectories;
-        printf("The original number of workers is more than the directories in docfile. Number of workers is now set to %d.\n",w);
     }
 
     //Allocate space for pipe file descriptors, pipe names, array to keep
@@ -70,8 +69,6 @@ void jobExecutor(char * docfile, int numberOfWorkers){
     //message the worker every time we want to run the /wc command
     getWordCount();
 
-    printf("All workers up and running.\n");
-
     //This is the main loop for command input and output
     // commandInputLoop();
 }
@@ -85,7 +82,7 @@ void cleanUp(){
     for(int i=0; i<w; i++){
         waitpid(workers[i].pid,&status,0);
         if (WIFEXITED(status)) {
-            printf("Worker #%d found %d uniques terms.\n", i, (int)WEXITSTATUS(status));
+            // printf("Worker #%d found %d uniques terms.\n", i, (int)WEXITSTATUS(status));
         }
     }
 

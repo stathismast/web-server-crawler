@@ -34,7 +34,6 @@ int countFiles(char * directory){
     DIR *dir;
     struct dirent *ent;
     int fileCount = 0;
-    printf("About to open %s\n",directory);
     if((dir = opendir(directory)) == NULL) {
         perror ("worker");
         exit(3);

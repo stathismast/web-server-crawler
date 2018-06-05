@@ -20,6 +20,8 @@ unsigned long bytesRecv = 0;
 
 extern int done;
 
+extern int verbose;
+
 int createSocket(){
     int sock;
     if ((sock = socket(PF_INET, SOCK_STREAM, 0)) < 0){
@@ -48,7 +50,7 @@ void listenForConnections(int sock, int port){
     if (listen(sock, 512) < 0){
         perror("listen"); exit(1);
     }
-    printf("Listening for connections to port %d\n", port);
+    if(verbose) printf("Listening for connections to port %d\n", port);
 }
 
 void acceptConnectionWhileCrawling(int sock){
@@ -136,7 +138,7 @@ void acceptCommandConnection(int sock){
             close(newsock);
             return;
         }
-        printf("Invalid command.\n");
+        if(verbose) printf("Invalid command.\n");
         close(newsock);
         return;
     }
@@ -148,7 +150,7 @@ void acceptCommandConnection(int sock){
             close(newsock);
             return;
         }
-        printf("Command request for shutdown\n");
+        printf("Received SHUTDOWN command.\n");
         close(newsock);
         done = 1;
         return;
@@ -168,12 +170,13 @@ void acceptCommandConnection(int sock){
                 temp = strtok(NULL," \r\n");
                 continue;
             }
-            printf("-%s-\n",temp);
+            if(verbose) printf("Search term: %s\n",temp);
             searchTerms[termCount] = malloc(strlen(temp)+1);
             strcpy(searchTerms[termCount],temp);
             termCount++;
             temp = strtok(NULL," \r\n");
         }
+        printf("Received SEARCH command.\n");
 
         if(termCount == 0){
             if (write(newsock, "No search terms given\n", 23) < 0){
@@ -207,7 +210,7 @@ void acceptCommandConnection(int sock){
             close(newsock);
             return;
         }
-        printf("Command request for stats\n");
+        printf("Received STATS command.\n");
     }
     else{
         if (write(newsock, "Invalid command.\n", 18) < 0){
@@ -215,7 +218,7 @@ void acceptCommandConnection(int sock){
             close(newsock);
             return;
         }
-        printf("Invalid command.\n");
+        printf("Received invalid command.\n");
     }
     close(newsock);
     return;
@@ -224,7 +227,6 @@ void acceptCommandConnection(int sock){
 void getNextLine(int fd, char * line){
     int pos = 0;
     do {
-        // printf("Quarter%d: -%s-\n",pos, line);
         read(fd,&line[pos],1);
         pos++;
     } while(line[pos-1] != '\n');
@@ -456,47 +458,9 @@ void createDirectory(char * directory){
 void writeFile(char * fileName, char * content){
     unlink(fileName); //Delete file if it already exists
 
-    // char * clean = malloc(strlen(content)+1);   //String that will contain the
-    // bzero(clean,strlen(content)+1);             //content without html links
-    // int htmlLink = 0;
-    // for(int i=0; i<strlen(content); i++){
-    //     if(content[i] == '<') htmlLink = 1;
-    //     if(!htmlLink) clean[i] = content[i];
-    //     if(content[i] == '>') htmlLink = 0;
-    // }
-    // printf("Only now ready to write\n");
-    // FILE *stream = fopen(fileName, "ab+");
-    // fprintf(stream,"%s",content);
-
-
-    // FILE *stream = fopen(fileName, "ab+");
-    // int offset = 0;
-    // for(int i=0; i<strlen(content); i++){
-    //     if(content[i] == '<'){
-    //         char temp = content[i];
-    //         content[i] = 0;
-    //         if(offset != i) fprintf(stream,"%s",&content[offset]);
-    //         content[i] = temp;
-    //     }
-    //     else if(content[i] == '>'){
-    //         offset = i+1;
-    //     }
-    // }
-
-
     FILE *stream = fopen(fileName, "ab+");
     fprintf(stream,"%s",content);
-
-    // char * saveptr;
-    // char * line = strtok_r(content,"\n",&saveptr);
-    // while(line != NULL){
-    //     if(line[0] != '<')
-    //         fprintf(stream,"%s\n",line);
-    //     line = strtok_r(NULL,"\n",&saveptr);
-    // }
-
     fclose(stream);
-    // free(clean);
 }
 
 void * worker(void * argp){
@@ -523,7 +487,7 @@ void * worker(void * argp){
             nextFile = nextFile->next;
         pthread_mutex_unlock(&mtx);
 
-        printf("#%d Threads waiting: %d\n",id,threadsWaiting);
+        if(verbose) printf("#%d: Threads waiting: %d\n",id,threadsWaiting);
 
         int sock = sendHttpRequest(request);
 
@@ -553,11 +517,11 @@ void * worker(void * argp){
         char * fileName;
         getDirectoryAndFileNames(request,&directoryName,&fileName);
 
-                printf("%d About to go write file (%s)\n",id,fileName);
-        // printf("%d -%s-\n",id,directoryName);
+        if(verbose) printf("%d: About to go write file (%s)\n",id,fileName);
+
         createDirectory(directoryName);
         writeFile(fileName,content);
-                printf("%d Done writing file (%s)\n",id,fileName);
+        if(verbose) printf("%d: Done writing file (%s)\n",id,fileName);
 
 
         free(directoryName);
