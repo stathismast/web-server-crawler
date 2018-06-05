@@ -111,8 +111,8 @@ void sendDirectories(){
 void terminateWorkers(){
     signal(SIGCHLD,SIG_DFL);    //Reset signal handler for SIGCHLD
     for(int i=0; i<w; i++){
-        strcpy(msgbuf,"/exit");
-        writeToChild(i,msgbuf);
+        if(kill(workers[i].pid,0) == 0) strcpy(msgbuf,"/exit");
+        if(kill(workers[i].pid,0) == 0) writeToChild(i,msgbuf);
     }
 }
 

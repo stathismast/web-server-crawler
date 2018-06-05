@@ -19,6 +19,8 @@ int searching;                  //Integer used as a boolean. Has a 'true' value
                                 //when we are executing a /search command
 int deadline;                   //Deadline in seconds
 
+int allWorkersDown = 0;
+
 void jobExecutor(char * docfile, int numberOfWorkers){
     w = numberOfWorkers;
 
@@ -75,7 +77,7 @@ void jobExecutor(char * docfile, int numberOfWorkers){
 
 void cleanUp(){
     //Inform each worker to exit
-    terminateWorkers();
+    if(!allWorkersDown) terminateWorkers();
 
     //Get the workers return value
     int status;

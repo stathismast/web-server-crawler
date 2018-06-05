@@ -9,8 +9,8 @@ void sigChild(int signum){
     wait(&status);
     for(int i=0; i<w; i++){
         if(kill(workers[i].pid,0) != 0){
-            printf("\n#%d worker terminated.\n",i);
-            reCreateReceiver(i);
+            // printf("\n#%d worker terminated.\n",i);
+            // reCreateReceiver(i);
         }
     }
 }

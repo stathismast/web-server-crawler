@@ -15,6 +15,8 @@ extern int responses;
 extern int searching;
 extern int deadline;
 
+extern int allWorkersDown;
+
 struct pollfd * fds;
 
 //Get a line for 'stdin' and return the string containing that line
@@ -219,26 +221,43 @@ void minCount(char * keyword){
 }
 
 void executeSearch(char ** searchTerms, int termCount, int dl){
+    if(termCount == 0){
+        return;
+    }
+
     char msgbuf[MSGSIZE+1];
     //Inform workers that we are about to run a search command
-    for(int i=0; i<w; i++)
-        writeToChild(i,"/search");
+
+    int unableWorkers = 0;
+    for(int i=0; i<w; i++){
+        kill(workers[i].pid,9);
+        printf("Worker #%d is unable to execute a SEARCH command.\n",i);
+        unableWorkers++;
+    }
+
+    printf("%d out of %d workers have crashed and are unable to search.\n", unableWorkers, w);
+    printf("%d out of %d workers responded.\n", responses, w);
+
+    if(unableWorkers == w){
+        allWorkersDown = 1;
+        return;
+    }
 
     //Send the total number of search terms to the workers
     sprintf(msgbuf,"%d",termCount);  //String with the number of search terms
     for(int i=0; i<w; i++)
-        writeToPipe(i,msgbuf);
+        if(kill(workers[i].pid,0) == 0) writeToPipe(i,msgbuf);
 
     //Send every search term to each worker
     for(int i=0; i<w; i++)
         for(int j=0; j<termCount; j++)
-            writeToPipe(i,searchTerms[j]);
+            if(kill(workers[i].pid,0) == 0) writeToPipe(i,searchTerms[j]);
 
     //Init pollfd array
     fds = malloc(w*sizeof(struct pollfd));
     initializePollFds();
 
-    responses = 0;
+    responses = unableWorkers;
     //Set deadline value to the current time plus the given deadline argument
     deadline = time(NULL) + dl;
 
@@ -267,8 +286,6 @@ void executeSearch(char ** searchTerms, int termCount, int dl){
     for(int i=0; i<w; i++)
         if(fds[i].fd != 0)
             kill(workers[i].pid,SIGUSR2);
-
-    printf("%d out of %d workers responded.\n", responses, w);
 
     //Right after deadline inform the workers (which were not able
     //to finish in time) that they shouldn't send their results
