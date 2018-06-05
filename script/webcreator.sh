@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Check if root_dir is an existing directory
 if [ ! -d "$1" ]; then
 	echo "$0: '$1' does not exist or is not a directory."
