@@ -5,6 +5,9 @@ char errorMsg[1024] = "HTTP/1.1 403 OK\nDate: Mon, 27 May 2018 12:28:53 GMT\nSer
 char notGet[1024] = "HTTP/1.1 403 OK\nDate: Mon, 27 May 2018 12:28:53 GMT\nServer: myhttpd/1.0.0 (Ubuntu64)\nContent-Length: 57\nContent-Type: text/html\nConnection: Closed\n\n<html>Error: This server only support GET requests</html>";
 
 extern char * rootDir;
+extern int servPort;
+extern int commPort;
+extern int numberOfThreads;
 
 extern pthread_mutex_t mtx;
 extern pthread_cond_t cond_nonempty;
@@ -334,4 +337,63 @@ char * getContent(char * file){
     free(line);
     fclose(stream);
     return content;
+}
+
+void invalidArguments(){
+    printf("ERROR: Invalid arguments.\n");
+    printf("Usage: ./myhttpd -p serving_port -c command_port -t num_of_threads -d root_dir\n");
+    printf("Note : Arguments can be given in any order but they are all necessary.\n");
+}
+
+void manageArguments(int argc, char *argv[]){
+    if(argc != 9){    //Too many arguments
+        invalidArguments();
+        exit(1);
+    }
+
+    int gotServingPort = 0;
+    int gotCommandPort = 0;
+    int gotNumOfThreads = 0;
+    int gotRootDir = 0;
+
+    int pos = 1;
+    while(pos != 9){
+        if(strcmp(argv[pos],"-p") == 0){
+            if(gotServingPort){
+                invalidArguments();
+                exit(1);
+            }
+            gotServingPort = 1;
+            servPort = atoi(argv[pos+1]);
+        }
+        else if(strcmp(argv[pos],"-c") == 0){
+            if(gotCommandPort){
+                invalidArguments();
+                exit(1);
+            }
+            gotCommandPort = 1;
+            commPort = atoi(argv[pos+1]);
+        }
+        else if(strcmp(argv[pos],"-t") == 0){
+            if(gotNumOfThreads){
+                invalidArguments();
+                exit(1);
+            }
+            gotNumOfThreads = 1;
+            numberOfThreads = atoi(argv[pos+1]);
+        }
+        else if(strcmp(argv[pos],"-d") == 0){
+            if(gotRootDir){
+                invalidArguments();
+                exit(1);
+            }
+            gotRootDir = 1;
+            rootDir = malloc(strlen(argv[pos+1])+1);
+            bzero(rootDir, strlen(argv[pos+1])+1); //Initialize string
+            strcpy(rootDir, argv[pos+1]);
+        }
+        pos+=2;
+    }
+    printf("Server running on port %d with %d threads.\n",servPort,numberOfThreads);
+    printf("Command port is %d and root directory is %s.\n",commPort,rootDir);
 }

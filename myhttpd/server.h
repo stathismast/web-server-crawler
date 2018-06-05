@@ -16,3 +16,4 @@ char * getContent(char * file);
 void place(Queue ** queue, int data);
 int obtain(Queue ** queue, int id);
 void * worker(void * argp);
+void manageArguments(int argc, char *argv[]);

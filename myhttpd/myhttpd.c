@@ -1,12 +1,14 @@
 #include "server.h"
 
 char * rootDir;
+int servPort;
+int commPort;
 
 pthread_mutex_t mtx;
 pthread_cond_t cond_nonempty;
 Queue * queue;
 
-int numberOfThreads = 10;
+int numberOfThreads;
 pthread_t * threadPool;
 
 int done = 0;
@@ -17,20 +19,10 @@ int main(int argc, char *argv[]){
     gettimeofday(&startingTime, NULL);
 
     int servSocket;
-    int servPort;
     int commSocket;
-    int commPort;
 
     //Manage arguments
-    if (argc < 3){
-        printf("Please give the server command port, command port number and root directory\n");
-        exit(1);
-    }
-    servPort = atoi(argv[1]);
-    commPort = atoi(argv[2]);
-    rootDir = malloc(strlen(argv[3])+1);
-    bzero(rootDir, strlen(argv[3])+1); //Initialize string
-    strcpy(rootDir, argv[3]);
+    manageArguments(argc,argv);
 
     //Initialize queue
     initQueue(&queue);
