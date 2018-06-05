@@ -7,7 +7,6 @@ extern int numberOfThreads;
 extern char * saveDir;
 extern char * startingURL;
 
-
 extern Queue * queue;
 extern Queue * nextFile;
 extern pthread_mutex_t mtx;
@@ -22,6 +21,7 @@ extern int done;
 
 extern int verbose;
 
+//Create and return a socket
 int createSocket(){
     int sock;
     if ((sock = socket(PF_INET, SOCK_STREAM, 0)) < 0){
@@ -30,6 +30,7 @@ int createSocket(){
     return sock;
 }
 
+//Listen for connection
 void listenForConnections(int sock, int port){
     struct sockaddr_in server;
     struct sockaddr *serverptr;
@@ -53,6 +54,7 @@ void listenForConnections(int sock, int port){
     if(verbose) printf("Listening for connections to port %d\n", port);
 }
 
+//Accept and serve command connections while crawling
 void acceptConnectionWhileCrawling(int sock){
     int newsock;
     struct sockaddr_in client;
@@ -82,6 +84,7 @@ void acceptConnectionWhileCrawling(int sock){
     return;
 }
 
+//Get current running time
 char * getRunningTime(){
     struct timeval tv;
     char buffer[64];
@@ -109,6 +112,7 @@ char * getRunningTime(){
     return ret;
 }
 
+//Accept command connection after crawling
 void acceptCommandConnection(int sock){
     int newsock;
     struct sockaddr_in client;
@@ -224,6 +228,7 @@ void acceptCommandConnection(int sock){
     return;
 }
 
+//Get the next line from a given fd
 void getNextLine(int fd, char * line){
     int pos = 0;
     do {
@@ -241,7 +246,8 @@ int findQuotations(char * str){
     return offset;
 }
 
-int  sendHttpRequest(char * request){
+//Send HTTP request to server
+int sendHttpRequest(char * request){
     int sock; unsigned int serverlen;
     struct sockaddr_in server;
     struct sockaddr *serverptr;
@@ -271,6 +277,7 @@ int  sendHttpRequest(char * request){
     return sock;
 }
 
+//Read HTTP response from server
 char * readHttpResponse(int sock){
     //Read HTTP header and store content length
     int contentLength = 0;
@@ -306,6 +313,7 @@ char * readHttpResponse(int sock){
     return buffer;
 }
 
+//Search the given string to find html links and add then in a queue
 Queue * findLinks(char * content){
     Queue * myQueue = NULL;
     char * htmlLink = content;
@@ -404,6 +412,7 @@ void manageArguments(int argc, char *argv[]){
     }
 }
 
+//Create an HTTP GET request
 char * createRequest(char * fileName){
     char * request = malloc(strlen(fileName) + 5);
     bzero(request, strlen(fileName) + 5);
@@ -412,6 +421,7 @@ char * createRequest(char * fileName){
     return request;
 }
 
+//Retrieve directory name and file name from a given request
 void getDirectoryAndFileNames(char * request, char ** dir, char ** file){
     char * directory, * fileName;
     for(int i=0; i<strlen(request); i++){
@@ -454,6 +464,7 @@ void getDirectoryAndFileNames(char * request, char ** dir, char ** file){
     free(fileName);
 }
 
+//Create a directory
 void createDirectory(char * directory){
 	struct stat st = {0};
 	if (stat(directory, &st) == -1){
@@ -461,6 +472,7 @@ void createDirectory(char * directory){
 	}
 }
 
+//Create a file and add a given string
 void writeFile(char * fileName, char * content){
     unlink(fileName); //Delete file if it already exists
 
@@ -469,9 +481,12 @@ void writeFile(char * fileName, char * content){
     fclose(stream);
 }
 
+//Thread function
 void * worker(void * argp){
     int id = (long) argp;
     while(!done){
+
+        //Safely pop a file name from the queue or if the queue is empty, wait
         pthread_mutex_lock(&mtx);
             while(nextFile == NULL){
                 threadsWaiting++;
@@ -495,12 +510,16 @@ void * worker(void * argp){
 
         if(verbose) printf("#%d: Threads waiting: %d\n",id,threadsWaiting);
 
+        //Request file that we just popped from the queue
         int sock = sendHttpRequest(request);
 
+        //Read response from server
         char * content = readHttpResponse(sock);
 
+        //Find links from file we received
         Queue * myQueue = findLinks(content);
 
+        //Safely add the file names we found in links
         pthread_mutex_lock(&mtx);
             Queue * node = myQueue;
             while(node != NULL){
@@ -519,12 +538,11 @@ void * worker(void * argp){
 
         freeQueue(myQueue);
 
+        //Store file in save_dir
         char * directoryName;
         char * fileName;
         getDirectoryAndFileNames(request,&directoryName,&fileName);
-
         if(verbose) printf("%d: About to go write file (%s)\n",id,fileName);
-
         createDirectory(directoryName);
         writeFile(fileName,content);
         if(verbose) printf("%d: Done writing file (%s)\n",id,fileName);
