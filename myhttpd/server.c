@@ -20,6 +20,8 @@ extern int done;
 
 extern struct timeval startingTime;
 
+extern int verbose;
+
 int createSocket(){
     int sock;
     if ((sock = socket(PF_INET, SOCK_STREAM, 0)) < 0){
@@ -48,7 +50,7 @@ void listenForConnections(int sock, int port){
     if (listen(sock, 512) < 0){
         perror("listen"); exit(1);
     }
-    printf("Listening for connections to port %d\n", port);
+    if(verbose) printf("Listening for connections to port %d\n", port);
 }
 
 char * getFullAddress(char * relativeAddress){
@@ -73,7 +75,7 @@ void acceptConnection(int sock){
 
     //Safely add socket-fd in queue and signal the first available thread
     place(&queue, newsock);
-    printf("producer: %d\n", newsock);
+    if(verbose) printf("producer: %d\n", newsock);
     pthread_cond_signal(&cond_nonempty);
 }
 
@@ -125,13 +127,25 @@ void acceptCommandConnection(int sock){
     }
 
     char * temp = strtok(buf," \r\n");
+
+    if(temp == NULL){
+        if (write(newsock, "Invalid command.\n", 18) < 0){
+            perror("write");
+            close(newsock);
+            return;
+        }
+        printf("Received invalid command.\n");
+        close(newsock);
+        return;
+    }
+
     if(strcmp(temp,"SHUTDOWN") == 0){
         if (write(newsock, "Shutting down...\n", 18) < 0){
             perror("write");
             close(newsock);
             return;
         }
-        printf("Command request for shutdown\n");
+        printf("Received SHUTDOWN command.\n");
         close(newsock);
         done = 1;
         return;
@@ -149,7 +163,7 @@ void acceptCommandConnection(int sock){
             close(newsock);
             return;
         }
-        printf("Command request for stats\n");
+        printf("Received STATS command.\n");
     }
     else{
         if (write(newsock, "Invalid command.\n", 18) < 0){
@@ -157,7 +171,7 @@ void acceptCommandConnection(int sock){
             close(newsock);
             return;
         }
-        printf("Invalid command.\n");
+        printf("Received invalid command.\n");
     }
     close(newsock);
     return;
@@ -174,17 +188,15 @@ int obtain(Queue ** queue, int id) {
     pthread_mutex_lock(&mtx);
 
         while ((*queue)->length <= 0 && !done){
-            printf("#%d Will be waiting\n", id);
+            if(verbose) printf("#%d: Will be waiting\n", id);
             pthread_cond_wait(&cond_nonempty, &mtx);
-            printf("#%d Stopped waiting\n", id);
+            if(verbose) printf("#%d: Stopped waiting\n", id);
         }
 
         if(done){
             pthread_mutex_unlock(&mtx);
             return -1;
         }
-
-        // printf("#%d About to obtain, length is %d\n", id, (*queue)->length);
         data = popFromQueue(queue);
 
     pthread_mutex_unlock(&mtx);
@@ -195,14 +207,13 @@ void * worker(void * argp){
     int id = (long) argp;
     while (!done) {
         int fd = obtain(&queue, id);
-        // printf("#%ld consumer: %d\n", (long) argp, fd);
 
         if(fd == -1) break;
 
         serveRequest(fd, id);
     }
 
-    printf("#%d Done has value %d\n", id, done);
+    if(verbose) printf("#%d Done has value %d\n", id, done);
     return 0;
 }
 
@@ -223,7 +234,7 @@ void serveRequest(int sock, int id){
             close(sock);
             return;
         }
-        printf("#%d returning (Not a GET request)\n", id);
+        printf("Received invalid HTTP request.\n");
         close(sock);
         return;
     }
@@ -237,12 +248,12 @@ void serveRequest(int sock, int id){
             return;
         }
         close(sock);
-        printf("#%d returning (Invalid HTTP request)\n", id);
+        printf("Received invalid HTTP request.\n");
         return;
     }
 
     char * htmlFile = getFullAddress(relativeAddress);
-    printf("#%d File requested: %s\n", id, htmlFile);
+    if(htmlFile != NULL) printf("File requested: %s\n", htmlFile);
 
     char * content = getContent(htmlFile);
     if(content == NULL){
@@ -253,7 +264,7 @@ void serveRequest(int sock, int id){
             free(content);
             return;
         }
-        printf("#%d returning (File not found)\n", id);
+        printf("Received GET request for a file that was not found.\n");
         close(sock);           //Close socket
         free(htmlFile);
         free(content);
@@ -261,7 +272,6 @@ void serveRequest(int sock, int id){
     }
 
     char * htmlResponse = createResponse(content);
-    // printf("\n%s\n",htmlResponse);
     if (write(sock, htmlResponse, (int)strlen(htmlResponse)+1) < 0){//Send message
         perror("write");
         close(sock);           //Close socket

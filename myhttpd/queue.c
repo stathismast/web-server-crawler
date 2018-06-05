@@ -1,5 +1,7 @@
 #include "queue.h"
 
+extern int verbose;
+
 //Create and initialize a new Queue
 Queue * newQueue(int fd){
     // printf("Creating a new queue\n");
@@ -35,7 +37,7 @@ void freeQNode(QNode * node){
 
 //Add the given letter at the end of a queue
 void addToQueue(int fd, Queue ** queue){
-    printf("Adding %d: ",fd);
+    if(verbose) printf("Adding %d: ",fd);
     if(*queue == NULL) *queue = newQueue(fd);
     else{
         if((*queue)->last != NULL){

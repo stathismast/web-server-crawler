@@ -13,6 +13,8 @@ pthread_t * threadPool;
 
 int done = 0;
 
+int verbose = 0;
+
 struct timeval startingTime;       //Start time in seconds
 
 int main(int argc, char *argv[]){
@@ -50,6 +52,8 @@ int main(int argc, char *argv[]){
     sockets[1].fd = commSocket;
     sockets[1].events = POLLIN;
     sockets[1].revents = 0;
+
+    printf("Server up and running...\n");
 
     int requests = 0;
     while(!done){
