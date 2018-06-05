@@ -11,10 +11,10 @@ Queue * nextFile;
 pthread_mutex_t mtx;
 pthread_cond_t cond_nonempty;
 
-int numberOfThreads = 20;
+int numberOfThreads;
 pthread_t * threadPool;
 
-char saveDir[64] = "save_dir";
+char * saveDir;
 
 struct timeval startingTime;       //Start time in seconds
 
@@ -93,6 +93,8 @@ int main(int argc, char *argv[]){
     freeQueue(queue);
     freeQueue(dirQueue);
     free(startingURL);
+    free(host);
+    free(saveDir);
 
     jobExecutor("index.txt",4);
 

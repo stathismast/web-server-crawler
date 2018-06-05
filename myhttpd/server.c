@@ -342,11 +342,11 @@ char * getContent(char * file){
 void invalidArguments(){
     printf("ERROR: Invalid arguments.\n");
     printf("Usage: ./myhttpd -p serving_port -c command_port -t num_of_threads -d root_dir\n");
-    printf("Note : Arguments can be given in any order but they are all necessary.\n");
+    printf("Note : Arguments can be given in any order and they are all necessary.\n");
 }
 
 void manageArguments(int argc, char *argv[]){
-    if(argc != 9){    //Too many arguments
+    if(argc != 9){
         invalidArguments();
         exit(1);
     }

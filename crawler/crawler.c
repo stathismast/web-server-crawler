@@ -3,9 +3,10 @@
 extern char * host;
 extern int port;
 extern int commandPort;
+extern int numberOfThreads;
+extern char * saveDir;
 extern char * startingURL;
 
-extern int numberOfThreads;
 
 extern Queue * queue;
 extern Queue * nextFile;
@@ -16,8 +17,6 @@ int threadsWaiting = 0;
 extern struct timeval startingTime;       //Start time in seconds
 unsigned long pagesRecv = 0;
 unsigned long bytesRecv = 0;
-
-extern char saveDir[64];
 
 extern int done;
 
@@ -316,16 +315,85 @@ Queue * findLinks(char * content){
     return myQueue;
 }
 
+void invalidArguments(){
+    printf("ERROR: Invalid arguments.\n");
+    printf("Usage: ./mycrawler -h host_or_IP -p port -c command_port -t num_of_threads -d save_dir starting_URL\n");
+    printf("Note : Arguments can be given in any order (except starting_URL which always goes last) and they are all necessary.\n");
+}
+
 void manageArguments(int argc, char *argv[]){
-    if(argc < 5){
-        printf("Please give host name, server port number, command port number and starting url\n"); exit(1);
+    if(argc != 12){
+        invalidArguments();
+        exit(1);
     }
-    host = argv[1];
-    port = atoi(argv[2]);
-    commandPort = atoi(argv[3]);
-    startingURL = malloc(strlen(argv[4]) + 1);
-    bzero(startingURL,strlen(argv[4]) + 1);
-    strcpy(startingURL,argv[4]);
+
+    int gotHost = 0;
+    int gotServerPort = 0;
+    int gotCommandPort = 0;
+    int gotNumOfThreads = 0;
+    int gotSaveDir = 0;
+
+    int pos = 1;
+    while(pos != 11){
+        if(strcmp(argv[pos],"-h") == 0){
+            if(gotHost){
+                invalidArguments();
+                exit(1);
+            }
+            gotHost = 1;
+            host = malloc(strlen(argv[pos+1])+1);
+            bzero(host, strlen(argv[pos+1])+1); //Initialize string
+            strcpy(host, argv[pos+1]);
+        }
+        else if(strcmp(argv[pos],"-p") == 0){
+            if(gotServerPort){
+                invalidArguments();
+                exit(1);
+            }
+            gotServerPort = 1;
+            port = atoi(argv[pos+1]);
+        }
+        else if(strcmp(argv[pos],"-c") == 0){
+            if(gotCommandPort){
+                invalidArguments();
+                exit(1);
+            }
+            gotCommandPort = 1;
+            commandPort = atoi(argv[pos+1]);
+        }
+        else if(strcmp(argv[pos],"-t") == 0){
+            if(gotNumOfThreads){
+                invalidArguments();
+                exit(1);
+            }
+            gotNumOfThreads = 1;
+            numberOfThreads = atoi(argv[pos+1]);
+        }
+        else if(strcmp(argv[pos],"-d") == 0){
+            if(gotSaveDir){
+                invalidArguments();
+                exit(1);
+            }
+            gotSaveDir = 1;
+            saveDir = malloc(strlen(argv[pos+1])+1);
+            bzero(saveDir, strlen(argv[pos+1])+1); //Initialize string
+            strcpy(saveDir, argv[pos+1]);
+        }
+        pos+=2;
+    }
+    if(gotHost && gotServerPort && gotCommandPort && gotNumOfThreads && gotSaveDir){
+        startingURL = malloc(strlen(argv[pos])+1);
+        bzero(startingURL, strlen(argv[pos])+1); //Initialize string
+        strcpy(startingURL, argv[pos]);
+
+        printf("Crawler will connect with %s at port %d.\n",host,port);
+        printf("Crawler will run with %d threads.\nCommand port is %d.\n",numberOfThreads,commandPort);
+        printf("Save directory is %s and starting URL is %s.\n",saveDir,startingURL);
+    }
+    else{
+        invalidArguments();
+        exit(1);
+    }
 }
 
 char * createRequest(char * fileName){
