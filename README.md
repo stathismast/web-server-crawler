@@ -1,46 +1,25 @@
-Ευστάθιος-Ανδρέας Μαστοράκης - sdi1500092
+# Web Server, Web Crawler in C & Website Creator in Bash
 
-Τρίτη Εργασία Προγραμματισμός Συστήματος
+- The website creator script in Bash is designed to create a random website from the contents of files in a given directory. The number of pages created can be controlled and every page has a number of links to another page.
+- The web server and web crawler are implemented in C. The server is designed to serve the pages created by the website creator script. It assignes a new thread - from a pool of available threads - to server every new HTTP request.
+- The web crawler is designed to crawl through webpages by storing every link it finds in each page and assigning a new thread to crawl through one of the links found earlier. If a link is found more than once it is ignored. The crawler also stores every website it visits. That way, if we set up the crawler to begin exploring the pages created by the Website Creator script though the web server described above, by the end of the crawling it will have made an exact copy of the pages created by the script.
 
-ΠΡΟΣΟΧΗ: Η search της δεύτερης εργασίας είναι προβληματική. Με μεγάλα αρχεία,
-         όπως τα pages που έχουν >1000 σειρές, σχεδόν πάντα αποτυγχάνει. Οπότε,
-         όταν δίνεται στο command port κάποιο SEARCH είναι πολύ πιθανό οι
-         workers του jobExecutor να αποτύχουν και να τερματίσουν. Αν αποτύχουν,
-         εμφανίζεται από τον jobExecutor ανάλογο μήνυμα στο command port ενώ αν
-         επιτύχει εμφανίζονται τα αποτελέσματα στο command port.
+## Dependencies
+- In order to run this code you only need to have ```make``` and the ```gcc``` compiler installed on your machine.
+- If by any chance those are not installed on your Linux distro, you can install them as such:
+```
+sudo apt-get install make
+sudo apt-get install gcc
+```
 
-Σημείωση: -- Αν η search επιτύχει τότε θα αγνοήσει τα html tags.
+## Compile
 
-SERVER:
-    Ο σέρβερ δημιουργεί ένα thread pool και μία ουρά (δυναμική δομή, χωρίς άνω
-όριο) στην οποία θα βάζει τα file descriptor των socket για κάθε request.
-    Χρησιμοποιεί την poll για να περιμένει για σύνδεση είτε στο command port
-είτε στο serving port.
-    Το κάθε thread του server προσπαθεί να λάβει το πρώτο στοιχείο στην ουρά.
-Αν αυτή είναι άδεια θα περιμένει (με condition variable).
-Όταν ο server αποδεκτεί σύνδεση στο serving port θα προσθέσει το fd στην ουρά
-και θα ειδοποιήσει το πρώτο thread να ελέγξει την ουρά για το fd. Όλη αυτή η
-λειτουργικότητα προστατεύεται από mutex και condition variable.
+- To compile the server and crawler, execute:
+```
+make
+```
+from the corresponding directories.
 
-CRAWLER:
-    O crawler έχει επίσης μία ουρά (δυναμική δομή, χωρίς άνω όριο) και ένα
-thread pool. Αρχικά προσθέτει το starting URL στην ουρά, έπειτα δημιουργεί τα
-threads.
-    Το κάθε thread προσπαθεί (με χρήση mutex) να λάβει κάποιο όνομα αρχείου από
-την ουρά και αν η ουρά είναι άδεια περιμένει το αντιστοιχο condition variable.
-Αν ένα thread λάβει κάποιο όνομα, ξεκλειδώνει το mutex του και ζητά το αρχείο
-από τον server, αναζητά links μέσα σε αυτό. Αφού βρεί όλα τα links μέσα στο
-αρχείο θα ξανακλειδώσει το mutex έτσι ώστε να προσθέσει τα links που βρήκε στην
-ουρά και ειδοποιεί τα υπόλοιπα threads ότι υπάρχουν νέα όνοματα αρχείων που
-θέλουμε να ζητήσουμε από τον server.
-    Σε κάθε περίπτωση τα κοινά δεδομένα, όπως η ουρά, προστατεύονται από mutexes
-και κάθε φορά που η ουρά είναι άδεια, αν κάποιο thread θέλει να λάβει αρχείο θα
-περιμένει την condition variable.
-    To crawling σταματα πρακτικά όταν όλα τα threads είναι στην κατάσταση που
-περιμένουν την condition variable. Όταν συμβεί αυτό, ειδοποιείται το βασικό
-thread, θέτει την τιμή της μεταβλητής 'done' σε αληθή και ειδοποιεί τα threads
-ώστε να κάνουν join.
-    Μετά το crawling καλείται μία συνάρτηση της δεύτερης εργασία που προετοιμά-
-ζει τον jobExecutor και τους workers για να εκτελέσουν αναζητήσεις στα αρχεία.
-    Κατά τη διάρκεια του crawling γίνεται poll στο command port για πιθανά
-commands, ομοίως και μετά την ολοκλήρωση του crawling.
+## Execute
+
+-  To execute, run the executable created from the compilation and make sure to include all the required parameters. Don't worry, if you make a mistake a relevant message will appear to let you know what you need to add.
